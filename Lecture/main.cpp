@@ -1,49 +1,43 @@
 #include "pch.h"
 
-volatile int32_t sum[8 * 8];
-std::mutex mu_lock;
+volatile int32_t victim{ 0 };
+volatile bool flag[2]{ false, false };
 
-void ThreadSum(int32_t id, int32_t thread_num)
+volatile int32_t sum{ 0 };
+
+void Lock(int32_t th_id)
 {
-	for (int i = 0; i < 50000000 / thread_num; ++i)
+	int32_t other{ 1 - th_id };
+	flag[th_id] = true;
+	victim = th_id;
+	while(flag[other] == true && victim == th_id) {}
+}
+
+void Unlock(int32_t th_id)
+{
+	flag[th_id] = false;
+}
+
+void Thread(int32_t th_id)
+{
+	for (int32_t i = 0; i < 25000000; ++i)
 	{
-		sum[id * 8] += 2;
+		Lock(th_id);
+		sum += 2;
+		Unlock(th_id);
 	}
 }
 
 int main()
 {
-	for (int32_t num_thread = 1; num_thread < 9; num_thread *= 2)
-	{
-		for (auto& n : sum)
-		{
-			n = 0;
-		}
-		std::vector<std::thread> threads;
+	auto start{ std::chrono::steady_clock::now() };
+	std::thread t1{ Thread, 0 };
+	std::thread t2{ Thread, 1 };
 
-		auto start{ steady_clock::now() };
+	t1.join();
+	t2.join();
+	auto end{ std::chrono::steady_clock::now() };
 
-		for (int32_t i = 0; i < num_thread; ++i)
-		{
-			threads.emplace_back(ThreadSum, i, num_thread);
-		}
-
-		for (auto& thread : threads)
-		{
-			thread.join();
-		}
-
-		auto end{ steady_clock::now() };
-		int32_t total{};
-
-		for (auto n : sum)
-		{
-			total += n;
-		}
-
-		//std::cout << std::format("{} threads, sum = {}, delta time = {}\n", num_thread, sum, duration_cast<milliseconds>(end - start).count());
-		std::cout << num_thread << " threads, "
-			<< "sum = " << total << ", "
-			<< "delta time = " << duration_cast<milliseconds>(end - start).count() << std::endl;
-	}
+	std::cout << "Result : " << sum << ", Time : "
+		<< std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
 }
