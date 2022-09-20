@@ -1,64 +1,49 @@
 #include "pch.h"
 
-constexpr int32_t SIZE{ 50000000 };
-volatile int32_t x, y;
+int32_t error;
+volatile int32_t* bound;
+volatile bool finish{ false };
 
-int32_t trace_x[SIZE];
-int32_t trace_y[SIZE];
-
-std::mutex xl, yl;
-
-void Thread1()
+void Work()
 {
-	for (int32_t i = 0; i < SIZE; ++i)
+	for (int32_t i = 0; i < 25000000; ++i)
 	{
-		xl.lock();
-		x = i;
-		xl.unlock();
-		//std::atomic_thread_fence(std::memory_order_seq_cst);
-		yl.lock();
-		trace_y[i] = y;
-		yl.unlock();
+		*bound = -(1 + *bound);
 	}
+
+	finish = true;
 }
 
-void Thread2()
+void Check()
 {
-	for (int32_t i = 0; i < SIZE; ++i)
+	while (finish == false)
 	{
-		yl.lock();
-		y = i;
-		yl.unlock();
-		//std::atomic_thread_fence(std::memory_order_seq_cst);
-		xl.lock();
-		trace_x[i] = x;
-		xl.unlock();
+		int32_t v{ *bound };
+
+		if ((v != 0) && (v != -1))
+		{
+			std::cout << std::format("{:#x}, ", v);
+			++error;
+		}
 	}
 }
 
 int main()
 {
-	std::thread t1{ Thread1 };
-	std::thread t2{ Thread2 };
+	int32_t a[32];
+	int64_t address{ reinterpret_cast<int64_t>(&a[30]) };
+	
+	address = (address / 64) * 64;
+	address -= 1;
+
+	bound = reinterpret_cast<int32_t*>(address);
+	*bound = 0;
+
+	std::thread t1{ Work };
+	std::thread t2{ Check };
 
 	t1.join();
 	t2.join();
 
-	int32_t count{ 0 };
-
-	for (int32_t i = 0; i < SIZE; ++i)
-	{
-		if (trace_x[i] == trace_x[i + 1])
-		{
-			if (trace_y[trace_x[i]] == trace_y[trace_x[i] + 1])
-			{
-				if (trace_y[trace_x[i]] != i)
-					continue;
-
-				++count;
-			}
-		}
-	}
-
-	std::cout << std::format("Total Memory Inconsistency : {}", count) << std::endl;
+	std::cout << std::format("\nNumber of error : {}", error) << std::endl;
 }
