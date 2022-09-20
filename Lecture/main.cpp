@@ -1,43 +1,64 @@
 #include "pch.h"
 
-volatile int32_t victim{ 0 };
-volatile bool flag[2]{ false, false };
+constexpr int32_t SIZE{ 50000000 };
+volatile int32_t x, y;
 
-volatile int32_t sum{ 0 };
+int32_t trace_x[SIZE];
+int32_t trace_y[SIZE];
 
-void Lock(int32_t th_id)
+std::mutex xl, yl;
+
+void Thread1()
 {
-	int32_t other{ 1 - th_id };
-	flag[th_id] = true;
-	victim = th_id;
-	while(flag[other] == true && victim == th_id) {}
-}
-
-void Unlock(int32_t th_id)
-{
-	flag[th_id] = false;
-}
-
-void Thread(int32_t th_id)
-{
-	for (int32_t i = 0; i < 25000000; ++i)
+	for (int32_t i = 0; i < SIZE; ++i)
 	{
-		Lock(th_id);
-		sum += 2;
-		Unlock(th_id);
+		xl.lock();
+		x = i;
+		xl.unlock();
+		//std::atomic_thread_fence(std::memory_order_seq_cst);
+		yl.lock();
+		trace_y[i] = y;
+		yl.unlock();
+	}
+}
+
+void Thread2()
+{
+	for (int32_t i = 0; i < SIZE; ++i)
+	{
+		yl.lock();
+		y = i;
+		yl.unlock();
+		//std::atomic_thread_fence(std::memory_order_seq_cst);
+		xl.lock();
+		trace_x[i] = x;
+		xl.unlock();
 	}
 }
 
 int main()
 {
-	auto start{ std::chrono::steady_clock::now() };
-	std::thread t1{ Thread, 0 };
-	std::thread t2{ Thread, 1 };
+	std::thread t1{ Thread1 };
+	std::thread t2{ Thread2 };
 
 	t1.join();
 	t2.join();
-	auto end{ std::chrono::steady_clock::now() };
 
-	std::cout << "Result : " << sum << ", Time : "
-		<< std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
+	int32_t count{ 0 };
+
+	for (int32_t i = 0; i < SIZE; ++i)
+	{
+		if (trace_x[i] == trace_x[i + 1])
+		{
+			if (trace_y[trace_x[i]] == trace_y[trace_x[i] + 1])
+			{
+				if (trace_y[trace_x[i]] != i)
+					continue;
+
+				++count;
+			}
+		}
+	}
+
+	std::cout << std::format("Total Memory Inconsistency : {}", count) << std::endl;
 }
