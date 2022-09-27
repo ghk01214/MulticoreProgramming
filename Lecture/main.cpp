@@ -1,49 +1,66 @@
 #include "pch.h"
 
-int32_t error;
-volatile int32_t* bound;
-volatile bool finish{ false };
-
-void Work()
+enum : int32_t
 {
-	for (int32_t i = 0; i < 25000000; ++i)
-	{
-		*bound = -(1 + *bound);
-	}
+	NONE = 0,
+	LOCK,
+	MAX
+};
 
-	finish = true;
+volatile int32_t sum{ 0 };
+volatile int32_t lock_memory{ NONE };
+
+bool cas(volatile int32_t* address, int32_t expected, int32_t update)
+{
+	return std::atomic_compare_exchange_strong(reinterpret_cast<volatile std::atomic_int32_t*>(address), &expected, update);
 }
 
-void Check()
+void Lock()
 {
-	while (finish == false)
-	{
-		int32_t v{ *bound };
+	// lock_memory == LOCK이면 NONE이 될 때까지 대기
+	// lock_memory == NONE이면 atomic하게 LOCK로 변환 후 return
+	while (cas(&lock_memory, NONE, LOCK) == false) {}
+}
 
-		if ((v != 0) && (v != -1))
-		{
-			std::cout << std::format("{:#x}, ", v);
-			++error;
-		}
+void Unlock()
+{
+	// atomic하게 lock_memory를 NONE으로 변환
+	cas(&lock_memory, LOCK, NONE);
+}
+
+void Thread(int32_t threads)
+{
+	for (int32_t i = 0; i < 50000000 / threads; ++i)
+	{
+		Lock();
+		sum += 2;
+		Unlock();
 	}
 }
 
 int main()
 {
-	int32_t a[32];
-	int64_t address{ reinterpret_cast<int64_t>(&a[30]) };
-	
-	address = (address / 64) * 64;
-	address -= 1;
+	for (int32_t thread_num = 1; thread_num <= 8; thread_num *= 2)
+	{
+		auto start{ steady_clock::now() };
+		sum = 0;
 
-	bound = reinterpret_cast<int32_t*>(address);
-	*bound = 0;
+		std::vector<std::thread> threads;
 
-	std::thread t1{ Work };
-	std::thread t2{ Check };
+		for (int32_t i = 0; i < thread_num; ++i)
+		{
+			threads.emplace_back(Thread, thread_num);
+		}
 
-	t1.join();
-	t2.join();
+		for (auto& thread : threads)
+		{
+			thread.join();
+		}
 
-	std::cout << std::format("\nNumber of error : {}", error) << std::endl;
+		auto end{ steady_clock::now() };
+
+		std::cout << std::format("Thread Number : {}, Sum = ", thread_num);
+		std::cout << sum;
+		std::cout << std::format(", Time : {}\n", duration_cast<milliseconds>(end - start));
+	}
 }
