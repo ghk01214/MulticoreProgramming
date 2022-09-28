@@ -30,12 +30,12 @@ void Unlock()
 
 void Thread(int32_t threads)
 {
+		Lock();
 	for (int32_t i = 0; i < 50000000 / threads; ++i)
 	{
-		Lock();
 		sum += 2;
-		Unlock();
 	}
+		Unlock();
 }
 
 int main()
