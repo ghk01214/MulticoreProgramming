@@ -6,7 +6,7 @@ struct Node
 	T data;
 	Node<T>* next;
 
-	Node() : next{nullptr} {}
+	Node() : next{ nullptr } {}
 	Node(T data) : data{ data } {}
 };
 
@@ -27,6 +27,8 @@ public:
 private:
 	Node<T> _head;
 	Node<T> _tail;
+
+	std::mutex ml;
 };
 
 template<typename T>
@@ -47,6 +49,8 @@ template<typename T>
 inline bool List<T>::insert(T value)
 {
 	Node<T>* prev{ &_head };
+
+	ml.lock();
 	Node<T>* current{ prev->next };
 
 	while (current->data < value)
@@ -62,9 +66,11 @@ inline bool List<T>::insert(T value)
 		node->next = current;
 		prev->next = node;
 
+		ml.unlock();
 		return true;
 	}
 
+	ml.unlock();
 	return false;
 }
 
@@ -72,6 +78,7 @@ template<typename T>
 inline bool List<T>::remove(T value)
 {
 	Node<T>* prev{ &_head };
+	ml.lock();
 	Node<T>* current{ prev->next };
 
 	while (current->data < value)
@@ -81,12 +88,16 @@ inline bool List<T>::remove(T value)
 	}
 
 	if (current->data != value)
+	{
+		ml.unlock();
 		return false;
+	}
 
 	prev->next = current->next;
 
 	delete current;
 
+	ml.unlock();
 	return true;
 }
 
@@ -94,6 +105,7 @@ template<typename T>
 inline bool List<T>::contains(T value)
 {
 	Node<T>* prev{ &_head };
+	ml.lock();
 	Node<T>* current{ prev->next };
 
 	while (current->data < value)
@@ -102,7 +114,14 @@ inline bool List<T>::contains(T value)
 		current = current->next;
 	}
 
-	return current->data == value;
+	if (current->data != value)
+	{
+		ml.unlock();
+		return false;
+	}
+
+	ml.unlock();
+	return true;
 }
 
 template<typename T>

@@ -1,26 +1,15 @@
 #include "pch.h"
 #include "List.h"
 
-enum : int32_t
-{
-	NONE = 0,
-	LOCK,
-	MAX
-};
-
-volatile int32_t sum{ 0 };
-volatile int32_t lock_memory{ NONE };
+List<int32_t> list;
 
 std::default_random_engine dre{ std::random_device{}() };
 std::uniform_int_distribution<int32_t> uid{ 0, 999 };
 std::uniform_int_distribution<int32_t> uid_op{ 0, 2 };
 
-int main()
+void Thread(int32_t num_thread)
 {
-	List<int32_t> list;
-
-	auto start{ steady_clock::now() };
-	for (int32_t i = 0; i < 5000000; ++i)
+	for (int32_t i = 0; i < 4000000; ++i)
 	{
 		switch (uid_op(dre))
 		{
@@ -41,9 +30,30 @@ int main()
 			break;
 		}
 	}
+}
 
-	list.Print();
-	auto end{ steady_clock::now() };
+int main()
+{
+	for (int32_t thread_num = 1; thread_num <= 8; thread_num *= 2)
+	{
+		auto start{ steady_clock::now() };
 
-	std::cout << std::format("Time : {}\n", duration_cast<milliseconds>(end - start));
+		std::vector<std::thread> threads;
+		list.clear();
+
+		for (int32_t i = 0; i < thread_num; ++i)
+		{
+			threads.emplace_back(Thread, thread_num);
+		}
+
+		for (auto& thread : threads)
+		{
+			thread.join();
+		}
+
+		auto end{ steady_clock::now() };
+
+		list.Print();
+		std::cout << std::format("Thread Number : {}, Time : {}\n", thread_num, duration_cast<milliseconds>(end - start));
+	}
 }
