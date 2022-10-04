@@ -1,13 +1,22 @@
 #pragma once
 
-template<typename T>
-struct Node
-{
-	T data;
-	Node<T>* next;
+#include "pch.h"
 
+template<typename T>
+class Node
+{
+public:
 	Node() : next{ nullptr } {}
 	Node(T data) : data{ data } {}
+
+	void lock() { _lock.lock(); }
+	void unlock() { _lock.unlock(); }
+
+private:
+	std::mutex _lock;
+public:
+	T data;
+	Node<T>* next;
 };
 
 template<typename T>
@@ -27,8 +36,6 @@ public:
 private:
 	Node<T> _head;
 	Node<T> _tail;
-
-	std::mutex ml;
 };
 
 template<typename T>
@@ -48,15 +55,21 @@ List<T>::~List()
 template<typename T>
 inline bool List<T>::insert(T value)
 {
-	Node<T>* prev{ &_head };
+	_head.lock();
 
-	ml.lock();
+	Node<T>* prev{ &_head };
 	Node<T>* current{ prev->next };
+
+	current->lock();
 
 	while (current->data < value)
 	{
+		prev->unlock();
+
 		prev = current;
 		current = current->next;
+
+		current->lock();
 	}
 
 	if (current->data != value)
@@ -66,61 +79,88 @@ inline bool List<T>::insert(T value)
 		node->next = current;
 		prev->next = node;
 
-		ml.unlock();
+		prev->unlock();
+		current->unlock();
+
 		return true;
 	}
 
-	ml.unlock();
+	prev->unlock();
+	current->unlock();
+
 	return false;
 }
 
 template<typename T>
 inline bool List<T>::remove(T value)
 {
+	_head.lock();
+
 	Node<T>* prev{ &_head };
-	ml.lock();
 	Node<T>* current{ prev->next };
+
+	current->lock();
 
 	while (current->data < value)
 	{
+		prev->unlock();
+
 		prev = current;
 		current = current->next;
+
+		current->lock();
 	}
 
 	if (current->data != value)
 	{
-		ml.unlock();
+		prev->unlock();
+		current->unlock();
+
 		return false;
 	}
 
 	prev->next = current->next;
 
+	current->unlock();
+
 	delete current;
 
-	ml.unlock();
+	prev->unlock();
+
 	return true;
 }
 
 template<typename T>
 inline bool List<T>::contains(T value)
 {
+	_head.lock();
+
 	Node<T>* prev{ &_head };
-	ml.lock();
 	Node<T>* current{ prev->next };
+
+	current->lock();
 
 	while (current->data < value)
 	{
+		prev->unlock();
+
 		prev = current;
 		current = current->next;
+
+		current->lock();
 	}
 
 	if (current->data != value)
 	{
-		ml.unlock();
+		prev->unlock();
+		current->unlock();
+
 		return false;
 	}
 
-	ml.unlock();
+	prev->unlock();
+	current->unlock();
+
 	return true;
 }
 
@@ -143,14 +183,17 @@ inline void List<T>::clear()
 template<typename T>
 inline void List<T>::Print()
 {
+	//_head.lock();
 	Node<T>* p{ _head.next };
 
 	for (int32_t i = 0; i < 20; ++i)
 	{
 		if (p != &_tail)
 		{
+			//p->lock();
 			std::cout << std::format("{}, ", p->data);
 			p = p->next;
+			//p->unlock();
 		}
 	}
 

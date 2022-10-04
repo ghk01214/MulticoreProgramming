@@ -9,7 +9,7 @@ std::uniform_int_distribution<int32_t> uid_op{ 0, 2 };
 
 void Thread(int32_t num_thread)
 {
-	for (int32_t i = 0; i < 4000000; ++i)
+	for (int32_t i = 0; i < 4000000 / num_thread; ++i)
 	{
 		switch (uid_op(dre))
 		{
