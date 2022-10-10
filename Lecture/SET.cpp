@@ -13,9 +13,10 @@ class NODE {
 	mutex n_lock;
 public:
 	int v;
-	NODE* next;
-	NODE() : v(-1), next(nullptr) {}
-	NODE(int x) : v(x), next(nullptr) {}
+	NODE* volatile next;
+	volatile bool removed;
+	NODE() : v(-1), next(nullptr), removed(false) {}
+	NODE(int x) : v(x), next(nullptr), removed(false) {}
 	void lock()
 	{
 		n_lock.lock();
@@ -390,7 +391,143 @@ private:
 	}
 };
 
-O_SET my_set;
+// 낙천적 동기화
+class L_SET {
+	NODE head, tail;
+public:
+	L_SET()
+	{
+		head.v = 0x80000000;
+		tail.v = 0x7FFFFFFF;
+		head.next = &tail;
+		tail.next = nullptr;
+	}
+	bool ADD(int x)
+	{
+		while (true)
+		{
+			NODE* prev = &head;
+			NODE* curr = prev->next;
+
+			while (curr->v < x)
+			{
+				prev = curr;
+				curr = curr->next;
+			}
+
+			prev->lock();
+			curr->lock();
+
+			if (validate(prev, curr))
+			{
+				if (curr->v != x)
+				{
+					NODE* node = new NODE{ x };
+					node->next = curr;
+					prev->next = node;
+					curr->unlock();
+					prev->unlock();
+					return true;
+				}
+				else
+				{
+					curr->unlock();
+					prev->unlock();
+					return false;
+				}
+			}
+			else
+			{
+				prev->unlock();
+				curr->unlock();
+			}
+		}
+	}
+
+	bool REMOVE(int x)
+	{
+		while (true)
+		{
+			NODE* prev = &head;
+			NODE* curr = prev->next;
+
+			while (curr->v < x)
+			{
+				prev = curr;
+				curr = curr->next;
+			}
+
+			prev->lock();
+			curr->lock();
+
+			if (validate(prev, curr))
+			{
+				if (curr->v != x)
+				{
+					curr->unlock();
+					prev->unlock();
+					return false;
+				}
+				else
+				{
+					curr->removed = true;
+					prev->next = curr->next;
+					curr->unlock();
+					prev->unlock();
+
+					return true;
+				}
+			}
+			else
+			{
+				prev->unlock();
+				curr->unlock();
+			}
+		}
+	}
+
+	bool CONTAINS(int x)
+	{
+		NODE* prev = &head;
+		NODE* curr = prev->next;
+
+		while (curr->v < x)
+		{
+			curr = curr->next;
+		}
+
+		return curr->v == x && curr->removed == false;
+	}
+	void print20()
+	{
+		NODE* p = head.next;
+		for (int i = 0; i < 20; ++i) {
+			if (p == &tail) break;
+			cout << p->v << ", ";
+			p = p->next;
+		}
+		cout << endl;
+	}
+
+	void clear()
+	{
+		NODE* p = head.next;
+		while (p != &tail) {
+			NODE* t = p;
+			p = p->next;
+			delete t;
+		}
+		head.next = &tail;
+	}
+
+private:
+	bool validate(NODE* prev, NODE* current)
+	{
+		return prev->removed == false && current->removed == false && prev->next == current;
+	}
+};
+
+L_SET my_set;
 
 class HISTORY {
 public:
@@ -400,26 +537,26 @@ public:
 	HISTORY(int o, int i, bool re) : op(o), i_value(i), o_value(re) {}
 };
 
-void worker(vector<HISTORY> *history, int num_threads)
+void worker(vector<HISTORY>* history, int num_threads)
 {
 	for (int i = 0; i < 4000000 / num_threads; ++i) {
 		int op = rand() % 3;
 		switch (op) {
-		case 0: {
-			int v = rand() % 1000;
-			my_set.ADD(v);
-			break;
-		}
-		case 1: {
-			int v = rand() % 1000;
-			my_set.REMOVE(v);
-			break;
-		}
-		case 2: {
-			int v = rand() % 1000;
-			my_set.CONTAINS(v);
-			break;
-		}
+			case 0: {
+				int v = rand() % 1000;
+				my_set.ADD(v);
+				break;
+			}
+			case 1: {
+				int v = rand() % 1000;
+				my_set.REMOVE(v);
+				break;
+			}
+			case 2: {
+				int v = rand() % 1000;
+				my_set.CONTAINS(v);
+				break;
+			}
 		}
 	}
 }
@@ -429,21 +566,21 @@ void worker_check(vector<HISTORY>* history, int num_threads)
 	for (int i = 0; i < 4000000 / num_threads; ++i) {
 		int op = rand() % 3;
 		switch (op) {
-		case 0: {
-			int v = rand() % 1000;
-			history->emplace_back(0, v, my_set.ADD(v));
-			break;
-		}
-		case 1: {
-			int v = rand() % 1000;
-			history->emplace_back(1, v, my_set.REMOVE(v));
-			break;
-		}
-		case 2: {
-			int v = rand() % 1000;
-			history->emplace_back(2, v, my_set.CONTAINS(v));
-			break;
-		}
+			case 0: {
+				int v = rand() % 1000;
+				history->emplace_back(0, v, my_set.ADD(v));
+				break;
+			}
+			case 1: {
+				int v = rand() % 1000;
+				history->emplace_back(1, v, my_set.REMOVE(v));
+				break;
+			}
+			case 2: {
+				int v = rand() % 1000;
+				history->emplace_back(2, v, my_set.CONTAINS(v));
+				break;
+			}
 		}
 	}
 }
