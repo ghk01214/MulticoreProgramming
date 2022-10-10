@@ -1,9 +1,4 @@
-#include <iostream>
-#include <chrono>
-#include <thread>
-#include <vector>
-#include <array>
-#include <mutex>
+#include "pch.h"
 
 using namespace std;
 using namespace chrono;
@@ -31,6 +26,7 @@ public:
 	}
 };
 
+// 성긴 동기화
 class SET {
 	NODE head, tail;
 	mutex ll;
@@ -122,6 +118,7 @@ public:
 	}
 };
 
+// 세밀한 동기화
 class F_SET {
 	NODE head, tail;
 public:
@@ -226,6 +223,7 @@ public:
 	}
 };
 
+// 낙천적 동기화
 class O_SET {
 	NODE head, tail;
 public:
@@ -238,65 +236,118 @@ public:
 	}
 	bool ADD(int x)
 	{
-		NODE* prev = &head;
-		NODE* curr = prev->next;
-		while (curr->v < x) {
-			prev = curr;
-			curr = curr->next;
-		}
-		prev->lock(); curr->lock();
-		if (curr->v != x) {
-			NODE* node = new NODE{ x };
-			node->next = curr;
-			prev->next = node;
-			curr->unlock();
-			prev->unlock();
-			return true;
-		}
-		else
+		while (true)
 		{
-			curr->unlock();
-			prev->unlock();
-			return false;
+			NODE* prev = &head;
+			NODE* curr = prev->next;
+
+			while (curr->v < x)
+			{
+				prev = curr;
+				curr = curr->next;
+			}
+
+			prev->lock();
+			curr->lock();
+
+			if (validate(prev, curr))
+			{
+				if (curr->v != x)
+				{
+					NODE* node = new NODE{ x };
+					node->next = curr;
+					prev->next = node;
+					curr->unlock();
+					prev->unlock();
+					return true;
+				}
+				else
+				{
+					curr->unlock();
+					prev->unlock();
+					return false;
+				}
+			}
+			else
+			{
+				prev->unlock();
+				curr->unlock();
+			}
 		}
 	}
 
 	bool REMOVE(int x)
 	{
-		NODE* prev = &head;
-		NODE* curr = prev->next;
-		while (curr->v < x) {
-			prev = curr;
-			curr = curr->next;
-		}
-		prev->lock(); curr->lock();
-		if (curr->v != x) {
-			curr->unlock();
-			prev->unlock();
-			return false;
-		}
-		else {
-			prev->next = curr->next;
-			curr->unlock();
-			prev->unlock();
-			delete curr;
-			return true;
+		while (true)
+		{
+			NODE* prev = &head;
+			NODE* curr = prev->next;
+
+			while (curr->v < x)
+			{
+				prev = curr;
+				curr = curr->next;
+			}
+
+			prev->lock();
+			curr->lock();
+
+			if (validate(prev, curr))
+			{
+				if (curr->v != x)
+				{
+					curr->unlock();
+					prev->unlock();
+					return false;
+				}
+				else
+				{
+					prev->next = curr->next;
+					curr->unlock();
+					prev->unlock();
+
+					return true;
+				}
+			}
+			else
+			{
+				prev->unlock();
+				curr->unlock();
+			}
 		}
 	}
 
 	bool CONTAINS(int x)
 	{
-		NODE* prev = &head;
-		NODE* curr = prev->next;
-		while (curr->v < x) {
-			prev = curr;
-			curr = curr->next;
+		while (true)
+		{
+			NODE* prev = &head;
+			NODE* curr = prev->next;
+
+			while (curr->v < x)
+			{
+				prev = curr;
+				curr = curr->next;
+			}
+
+			prev->lock();
+			curr->lock();
+
+			if (validate(prev, curr))
+			{
+				bool res = (curr->v == x);
+
+				curr->unlock();
+				prev->unlock();
+
+				return res;
+			}
+			else
+			{
+				prev->unlock();
+				curr->unlock();
+			}
 		}
-		prev->lock(); curr->lock();
-		bool res = (curr->v == x);
-		curr->unlock();
-		prev->unlock();
-		return res;
 	}
 	void print20()
 	{
@@ -319,9 +370,27 @@ public:
 		}
 		head.next = &tail;
 	}
+
+private:
+	bool validate(NODE* prev, NODE* current)
+	{
+		NODE* node{ &head };
+
+		while (node->v <= prev->v)
+		{
+			if (node == prev)
+			{
+				return prev->next == current;
+			}
+
+			node = node->next;
+		}
+
+		return false;
+	}
 };
 
-F_SET my_set;
+O_SET my_set;
 
 class HISTORY {
 public:
@@ -441,6 +510,8 @@ int main()
 		cout << num_threads << "Threads.  Exec Time : " << exec_ms << endl;
 		check_history(history, num_threads);
 	}
+
+	std::cout << "\n=================SPEED CHECK=================\n" << std::endl;
 
 	for (int num_threads = 1; num_threads <= 16; num_threads *= 2) {
 		vector <thread> threads;
