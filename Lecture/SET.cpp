@@ -27,6 +27,24 @@ public:
 	}
 };
 
+class NODE_SP {
+	mutex n_lock;
+public:
+	int v;
+	std::shared_ptr<NODE_SP> next;
+	volatile bool removed;
+	NODE_SP() : v(-1), next(nullptr), removed(false) {}
+	NODE_SP(int x) : v(x), next(nullptr), removed(false) {}
+	void lock()
+	{
+		n_lock.lock();
+	}
+	void unlock()
+	{
+		n_lock.unlock();
+	}
+};
+
 // 성긴 동기화
 class SET {
 	NODE head, tail;
@@ -391,7 +409,7 @@ private:
 	}
 };
 
-// 낙천적 동기화
+// 게으른 동기화
 class L_SET {
 	NODE head, tail;
 public:
@@ -527,7 +545,137 @@ private:
 	}
 };
 
-L_SET my_set;
+// 게으른 동기화(shared_ptr ver.)
+class L_SET_SP {
+	std::shared_ptr<NODE_SP> head, tail;
+public:
+	L_SET_SP() :
+		head{ std::make_shared<NODE_SP>(0x80000000) },
+		tail{ std::make_shared<NODE_SP>(0x7FFFFFFF) }
+	{
+		head->next = tail;
+		tail->next = nullptr;
+	}
+	bool ADD(int x)
+	{
+		while (true)
+		{
+			std::shared_ptr<NODE_SP> prev = head;
+			std::shared_ptr<NODE_SP> curr = prev->next;
+
+			while (curr->v < x)
+			{
+				prev = curr;
+				curr = curr->next;
+			}
+
+			prev->lock();
+			curr->lock();
+
+			if (validate(prev, curr))
+			{
+				if (curr->v != x)
+				{
+					std::shared_ptr<NODE_SP> node = std::make_shared<NODE_SP>(x);
+					node->next = curr;
+					prev->next = node;
+					curr->unlock();
+					prev->unlock();
+					return true;
+				}
+				else
+				{
+					curr->unlock();
+					prev->unlock();
+					return false;
+				}
+			}
+			else
+			{
+				prev->unlock();
+				curr->unlock();
+			}
+		}
+	}
+
+	bool REMOVE(int x)
+	{
+		while (true)
+		{
+			std::shared_ptr<NODE_SP> prev = head;
+			std::shared_ptr<NODE_SP> curr = prev->next;
+
+			while (curr->v < x)
+			{
+				prev = curr;
+				curr = curr->next;
+			}
+
+			prev->lock();
+			curr->lock();
+
+			if (validate(prev, curr))
+			{
+				if (curr->v != x)
+				{
+					curr->unlock();
+					prev->unlock();
+					return false;
+				}
+				else
+				{
+					curr->removed = true;
+					prev->next = curr->next;
+					curr->unlock();
+					prev->unlock();
+
+					return true;
+				}
+			}
+			else
+			{
+				prev->unlock();
+				curr->unlock();
+			}
+		}
+	}
+
+	bool CONTAINS(int x)
+	{
+		std::shared_ptr<NODE_SP> prev = head;
+		std::shared_ptr<NODE_SP> curr = prev->next;
+
+		while (curr->v < x)
+		{
+			curr = curr->next;
+		}
+
+		return curr->v == x && curr->removed == false;
+	}
+	void print20()
+	{
+		std::shared_ptr<NODE_SP> p = head->next;
+		for (int i = 0; i < 20; ++i) {
+			if (p == tail) break;
+			cout << p->v << ", ";
+			p = p->next;
+		}
+		cout << endl;
+	}
+
+	void clear()
+	{
+		head->next = tail;
+	}
+
+private:
+	bool validate(std::shared_ptr<NODE_SP> prev, std::shared_ptr<NODE_SP> current)
+	{
+		return prev->removed == false && current->removed == false && prev->next == current;
+	}
+};
+
+L_SET_SP my_set;
 
 class HISTORY {
 public:
