@@ -16,7 +16,7 @@ private:
 	std::mutex _lock;
 public:
 	T data;
-	std::shared_ptr<Node<T>> next;
+	Node<T>* volatile next;
 	volatile bool removed;
 };
 
@@ -34,20 +34,21 @@ public:
 
 	void Print();
 private:
-	bool validate(std::shared_ptr<Node<T>> prev, std::shared_ptr<Node<T>> current);
+	bool validate(Node<T>* prev, Node<T>* current);
 
 private:
-	std::shared_ptr<Node<T>> _head;
-	std::shared_ptr<Node<T>> _tail;
+	Node<T> _head;
+	Node<T> _tail;
 };
 
 template<typename T>
-List<T>::List() :
-	_head{ std::make_shared<Node<T>>(std::numeric_limits<int32_t>::min()) },
-	_tail{ std::make_shared<Node<T>>(std::numeric_limits<int32_t>::max()) }
+List<T>::List()
 {
-	_head->next = _tail;
-	_tail->next = nullptr;
+	_head.data = std::numeric_limits<int>::min();
+	_tail.data = std::numeric_limits<int>::max();
+
+	_head.next = &_tail;
+	_tail.next = nullptr;
 }
 
 template<typename T>
@@ -60,8 +61,8 @@ inline bool List<T>::insert(T value)
 {
 	while (true)
 	{
-		std::shared_ptr<Node<T>> prev{ _head };
-		std::shared_ptr<Node<T>> current{ prev->next };
+		Node<T>* prev{ &_head };
+		Node<T>* current{ prev->next };
 
 		while (current->data < value)
 		{
@@ -88,7 +89,7 @@ inline bool List<T>::insert(T value)
 			return false;
 		}
 
-		std::shared_ptr<Node<T>> node{ std::make_shared<Node<T>>(value) };
+		Node<T>* node{ new Node<T>{ value } };
 
 		node->next = current;
 		prev->next = node;
@@ -105,8 +106,8 @@ inline bool List<T>::remove(T value)
 {
 	while (true)
 	{
-		std::shared_ptr<Node<T>> prev{ _head };
-		std::shared_ptr<Node<T>> current{ prev->next };
+		Node<T>* prev{ &_head };
+		Node<T>* current{ prev->next };
 
 		while (current->data < value)
 		{
@@ -146,7 +147,7 @@ inline bool List<T>::remove(T value)
 template<typename T>
 inline bool List<T>::contains(T value)
 {
-	std::shared_ptr<Node<T>> current{ _head };
+	Node<T>* current{ &_head };
 
 	while (current->data < value)
 	{
@@ -159,17 +160,27 @@ inline bool List<T>::contains(T value)
 template<typename T>
 inline void List<T>::clear()
 {
-	_head->next = _tail;
+	Node<T>* node{ _head.next };
+
+	while (node != &_tail)
+	{
+		Node<T>* temp{ node };
+		node = node->next;
+
+		delete temp;
+	}
+
+	_head.next = &_tail;
 }
 
 template<typename T>
 inline void List<T>::Print()
 {
-	std::shared_ptr<Node<T>> node{ _head->next };
+	Node<T>* node{ _head.next };
 
 	for (int32_t i = 0; i < 20; ++i)
 	{
-		if (node != _tail)
+		if (node != &_tail)
 		{
 			std::cout << std::format("{}, ", node->data);
 			node = node->next;
@@ -180,7 +191,7 @@ inline void List<T>::Print()
 }
 
 template<typename T>
-inline bool List<T>::validate(std::shared_ptr<Node<T>> prev, std::shared_ptr<Node<T>> current)
+inline bool List<T>::validate(Node<T>* prev, Node<T>* current)
 {
 	return prev->removed == false && current->removed == false && prev->next == current;
 }
