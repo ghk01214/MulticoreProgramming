@@ -7,7 +7,7 @@ class Node
 {
 public:
 	Node() : next{ nullptr } {}
-	Node(T data) : data{ data } {}
+	Node(T data) : data{ data }, next{ nullptr } {}
 
 	void lock() { _lock.lock(); }
 	void unlock() { _lock.unlock(); }
@@ -32,6 +32,8 @@ public:
 	void clear();
 
 	void Print();
+private:
+	bool validate(Node<T>* prev, Node<T>* current);
 
 private:
 	Node<T> _head;
@@ -45,6 +47,7 @@ List<T>::List()
 	_tail.data = std::numeric_limits<int>::max();
 
 	_head.next = &_tail;
+	_tail.next = nullptr;
 }
 
 template<typename T>
@@ -55,25 +58,36 @@ List<T>::~List()
 template<typename T>
 inline bool List<T>::insert(T value)
 {
-	_head.lock();
-
-	Node<T>* prev{ &_head };
-	Node<T>* current{ prev->next };
-
-	current->lock();
-
-	while (current->data < value)
+	while (true)
 	{
-		prev->unlock();
+		Node<T>* prev{ &_head };
+		Node<T>* current{ prev->next };
 
-		prev = current;
-		current = current->next;
+		while (current->data < value)
+		{
+			prev = current;
+			current = current->next;
+		}
 
+		prev->lock();
 		current->lock();
-	}
 
-	if (current->data != value)
-	{
+		if (validate(prev, current) == false)
+		{
+			prev->unlock();
+			current->unlock();
+
+			continue;
+		}
+
+		if (current->data == value)
+		{
+			prev->unlock();
+			current->unlock();
+
+			return false;
+		}
+
 		Node<T>* node{ new Node<T>{ value } };
 
 		node->next = current;
@@ -84,97 +98,95 @@ inline bool List<T>::insert(T value)
 
 		return true;
 	}
-
-	prev->unlock();
-	current->unlock();
-
-	return false;
 }
 
 template<typename T>
 inline bool List<T>::remove(T value)
 {
-	_head.lock();
-
-	Node<T>* prev{ &_head };
-	Node<T>* current{ prev->next };
-
-	current->lock();
-
-	while (current->data < value)
+	while (true)
 	{
-		prev->unlock();
+		Node<T>* prev{ &_head };
+		Node<T>* current{ prev->next };
 
-		prev = current;
-		current = current->next;
+		while (current->data < value)
+		{
+			prev = current;
+			current = current->next;
+		}
 
+		prev->lock();
 		current->lock();
-	}
 
-	if (current->data != value)
-	{
+		if (validate(prev, current) == false)
+		{
+			prev->unlock();
+			current->unlock();
+
+			continue;
+		}
+
+		if (current->data != value)
+		{
+			prev->unlock();
+			current->unlock();
+
+			return false;
+		}
+
+		prev->next = current->next;
+
 		prev->unlock();
 		current->unlock();
 
-		return false;
+		return true;
 	}
-
-	prev->next = current->next;
-
-	current->unlock();
-
-	delete current;
-
-	prev->unlock();
-
-	return true;
 }
 
 template<typename T>
 inline bool List<T>::contains(T value)
 {
-	_head.lock();
-
-	Node<T>* prev{ &_head };
-	Node<T>* current{ prev->next };
-
-	current->lock();
-
-	while (current->data < value)
+	while (true)
 	{
-		prev->unlock();
+		Node<T>* prev{ &_head };
+		Node<T>* current{ prev->next };
 
-		prev = current;
-		current = current->next;
+		while (current->data < value)
+		{
+			prev = current;
+			current = current->next;
+		}
 
+		prev->lock();
 		current->lock();
-	}
 
-	if (current->data != value)
-	{
+		if (validate(prev, current) == false)
+		{
+			prev->unlock();
+			current->unlock();
+			
+			continue;
+		}
+
+		bool result{ current->data == value };
+
 		prev->unlock();
 		current->unlock();
 
-		return false;
+		return result;
 	}
-
-	prev->unlock();
-	current->unlock();
-
-	return true;
 }
 
 template<typename T>
 inline void List<T>::clear()
 {
-	Node<T>* p{ _head.next };
+	Node<T>* node{ _head.next };
 
-	while (p != &_tail)
+	while (node != &_tail)
 	{
-		Node<T>* t{ p };
+		Node<T>* temp{ node };
+		node = node->next;
 
-		p = p->next;
-		delete t;
+		delete temp;
 	}
 
 	_head.next = &_tail;
@@ -183,19 +195,32 @@ inline void List<T>::clear()
 template<typename T>
 inline void List<T>::Print()
 {
-	//_head.lock();
-	Node<T>* p{ _head.next };
+	Node<T>* node{ _head.next };
 
 	for (int32_t i = 0; i < 20; ++i)
 	{
-		if (p != &_tail)
+		if (node != &_tail)
 		{
-			//p->lock();
-			std::cout << std::format("{}, ", p->data);
-			p = p->next;
-			//p->unlock();
+			std::cout << std::format("{}, ", node->data);
+			node = node->next;
 		}
 	}
 
 	std::cout << std::endl;
+}
+
+template<typename T>
+inline bool List<T>::validate(Node<T>* prev, Node<T>* current)
+{
+	Node<T>* node{ &_head };
+
+	while (node->data <= prev->data)
+	{
+		if (node == prev)
+			return prev->next == current;
+
+		node = node->next;
+	}
+
+	return false;
 }
