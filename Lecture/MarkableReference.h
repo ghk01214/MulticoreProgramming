@@ -16,6 +16,7 @@ public:
 	Node<T>* get_ptr() { return reinterpret_cast<Node<T>*>(address & 0xFFFFFFFFFFFFFFFE); }
 	bool get_removed() { return (address & 1) == 1; }
 	Node<T>* get_ptr_n_mark(bool* removed);
+	bool try_change_mark(Node<T>* node, bool removed) { return cas(node, node, false, true); }
 
 	bool cas(Node<T>* old_ptr, Node<T>* new_ptr, bool old_mark, bool new_mark);
 

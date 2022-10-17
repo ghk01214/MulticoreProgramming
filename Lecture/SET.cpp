@@ -45,6 +45,54 @@ public:
 	}
 };
 
+class LF_NODE;
+class LF_PTR {
+	unsigned long long next;
+public:
+	LF_PTR() : next(0) {}
+	LF_PTR(bool marking, LF_NODE* ptr)
+	{
+		next = reinterpret_cast<unsigned long long>(ptr);
+		if (true == marking) next = next | 1;
+	}
+	LF_NODE* get_ptr()
+	{
+		return reinterpret_cast<LF_NODE*>(next & 0xFFFFFFFFFFFFFFFE);
+	}
+	bool get_removed()
+	{
+		return (next & 1) == 1;
+	}
+	LF_NODE* get_ptr_mark(bool* removed)
+	{
+		unsigned long long cur_next = next;
+		*removed = (cur_next & 1) == 1;
+		return reinterpret_cast<LF_NODE*>(cur_next & 0xFFFFFFFFFFFFFFFE);
+	}
+	bool try_change_mark(LF_NODE* node, bool removed)
+	{
+		return CAS(node, node, false, true);
+	}
+	bool CAS(LF_NODE* o_ptr, LF_NODE* n_ptr, bool o_mark, bool n_mark)
+	{
+		unsigned long long o_next = reinterpret_cast<unsigned long long>(o_ptr);
+		if (true == o_mark) o_next++;
+		unsigned long long n_next = reinterpret_cast<unsigned long long>(n_ptr);
+		if (true == n_mark) n_next++;
+		return atomic_compare_exchange_strong(
+			reinterpret_cast<atomic_uint64_t*>(&next), &o_next, n_next);
+	}
+};
+
+class LF_NODE {
+public:
+	int v;
+	LF_PTR next;
+	LF_NODE() : v(-1), next(false, nullptr) {}
+	LF_NODE(int x) : v(x), next(false, nullptr) {}
+	LF_NODE(int x, LF_NODE* ptr) : v(x), next(false, ptr) {}
+};
+
 // 성긴 동기화
 class SET {
 	NODE head, tail;
@@ -675,7 +723,118 @@ private:
 	}
 };
 
-L_SET_SP my_set;
+class LF_SET {
+	LF_NODE head, tail;
+public:
+	LF_SET()
+	{
+		head.v = 0x80000000;
+		tail.v = 0x7FFFFFFF;
+		head.next = LF_PTR{ false, &tail };
+	}
+
+	void Find(LF_NODE*& prev, LF_NODE*& curr, int x)
+	{
+		while (true) {
+		retry:
+			prev = &head;
+			curr = prev->next.get_ptr();
+			while (true) {
+				bool removed;
+				LF_NODE* succ = curr->next.get_ptr_mark(&removed);
+				while (true == removed) {
+					if (false == prev->next.CAS(curr, succ, false, false)) {
+						goto retry;
+					}
+					curr = succ;
+					succ = curr->next.get_ptr_mark(&removed);
+				}
+				if (curr->v >= x) return;
+				prev = curr;
+				curr = succ;
+			}
+		}
+	}
+
+	bool ADD(int x)
+	{
+		while (true) {
+			LF_NODE* prev, * curr;
+			Find(prev, curr, x);
+			if (curr->v != x) {
+				LF_NODE* node = new LF_NODE{ x, curr };
+				if (true == prev->next.CAS(curr, node, false, false))
+					return true;
+				delete node;
+			}
+			else
+			{
+				return false;
+			}
+		}
+	}
+
+	bool REMOVE(int x)
+	{
+		while (true)
+		{
+			LF_NODE* prev;
+			LF_NODE* current;
+
+			Find(prev, current, x);
+
+			if (current->v != x)
+				return false;
+
+			LF_NODE* success = current->next.get_ptr();
+
+			if (current->next.try_change_mark(success, true) == false)
+				continue;
+
+			prev->next.CAS(current, success, false, false);
+
+			return true;
+		}
+	}
+
+	bool CONTAINS(int x)
+	{
+		bool removed;
+		LF_NODE* node = head.next.get_ptr_mark(&removed);
+
+		while (node->v < x)
+		{
+			node = node->next.get_ptr();
+			removed = node->next.get_removed();
+		}
+
+		return node->v == x && removed == false;
+	}
+
+	void print20()
+	{
+		LF_NODE* p = head.next.get_ptr();
+		for (int i = 0; i < 20; ++i) {
+			if (p == &tail) break;
+			cout << p->v << ", ";
+			p = p->next.get_ptr();
+		}
+		cout << endl;
+	}
+
+	void clear()
+	{
+		LF_NODE* p = head.next.get_ptr();
+		while (p != &tail) {
+			LF_NODE* t = p;
+			p = p->next.get_ptr();
+			delete t;
+		}
+		head.next = LF_PTR{ false, &tail };
+	}
+};
+
+LF_SET my_set;
 
 class HISTORY {
 public:

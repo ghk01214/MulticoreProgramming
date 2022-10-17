@@ -49,9 +49,7 @@ inline bool List<T>::insert(T value)
 		Find(value, prev, current);
 
 		if (current->data == value)
-		{
 			return false;
-		}
 
 		Node<T>* node{ new Node<T>{ value, current } };
 
@@ -67,7 +65,22 @@ inline bool List<T>::remove(T value)
 {
 	while (true)
 	{
+		Node<T>* prev;
+		Node<T>* current;
+
+		Find(value, prev, current);
+
+		if (current->data != value)
+			return false;
 		
+		Node<T>* success{ current->next.get_ptr() };
+
+		if (current->next.try_change_mark(success, true) == false)
+			continue;
+
+		prev->next.cas(current, success, false, false);
+
+		return true;
 	}
 }
 
@@ -75,13 +88,21 @@ template<typename T>
 inline bool List<T>::contains(T value)
 {
 	Node<T>* current{ _head.next.get_ptr() };
+	bool removed;
 
+	while (current->data < value)
+	{
+		current = current->next.get_ptr();
+		removed = current->next.get_removed();
+	}
+	
+	return current->data == value and removed == false;
 }
 
 template<typename T>
 inline void List<T>::clear()
 {
-	Node<T>* node{ _head.next };
+	Node<T>* node{ _head.next.get_ptr() };
 
 	while (node != &_tail)
 	{
@@ -134,7 +155,7 @@ inline void List<T>::Find(T value, Node<T>*& prev, Node<T>*& current)
 				success = current->next.get_ptr_n_mark(&removed);
 			}
 
-			if (current->data == value)
+			if (current->data >= value)
 				return;
 
 			prev = current;
