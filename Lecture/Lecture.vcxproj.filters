@@ -21,7 +21,7 @@
     <ClInclude Include="List.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="MarkableReference.h">
+    <ClInclude Include="MarkRef.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Node.h">

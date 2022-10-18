@@ -3,7 +3,7 @@
 using namespace std;
 using namespace chrono;
 
-static const int NUM_TEST = 4000000;
+static const int TEST_NUM = 4000000;
 static const int RANGE = 1000;
 
 class LFNODE {
@@ -236,7 +236,7 @@ LFSET my_set;
 void benchmark(int num_thread, int t)
 {
 	tid = t;
-	for (int i = 0; i < NUM_TEST / num_thread; ++i) {
+	for (int i = 0; i < TEST_NUM / num_thread; ++i) {
 		//	if (0 == i % 100000) cout << ".";
 		switch (rand() % 3) {
 		case 0: my_set.Add(rand() % RANGE); break;

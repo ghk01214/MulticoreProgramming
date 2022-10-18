@@ -3,8 +3,18 @@
 
 List<int32_t> list;
 
+static constexpr int32_t TEST_NUM{ 4000000 };
+static constexpr int32_t RANGE{ 1000 - 1 };
+
+//constexpr int32_t MAX_THREADS{ 16 };
+//std::atomic_uint64_t reservations[MAX_THREADS];
+
+//int32_t R;
+//int32_t num_thread;
+//thread_local int32_t thread_id;
+
 std::default_random_engine dre{ std::random_device{}() };
-std::uniform_int_distribution<int32_t> uid{ 0, 999 };
+std::uniform_int_distribution<int32_t> uid{ 0, RANGE };
 std::uniform_int_distribution<int32_t> uid_op{ 0, 2 };
 
 struct History
@@ -16,13 +26,13 @@ struct History
 	bool output;
 };
 
-void Thread(int32_t num_thread);
-void ThreadCheck(std::vector<History>* history, int32_t num_thread);
+void Benchmark(int32_t num_thread, int32_t id);
+void ThreadCheck(std::vector<History>* history, int32_t num_thread, int32_t id);
 void CheckHistory(std::array<std::vector<History>, 16>& history, int32_t num_thread);
 
 int main()
 {
-	std::cout << std::format("=================CONSISTENCY CHECK=================") << std::endl;
+	/*std::cout << std::format("=================CONSISTENCY CHECK=================") << std::endl;
 
 	for (int32_t thread_num = 1; thread_num <= 16; thread_num *= 2)
 	{
@@ -49,18 +59,27 @@ int main()
 		CheckHistory(history, thread_num);
 	}
 
-	std::cout << std::format("=================SPEED CHECK=================") << std::endl;
+	std::cout << std::format("=================SPEED CHECK=================") << std::endl;*/
 
 	for (int32_t thread_num = 1; thread_num <= 16; thread_num *= 2)
 	{
 		std::vector<std::thread> threads;
 		list.clear();
+		threads.clear();
+
+		for (int32_t i = 0; i < MAX_THREADS; ++i)
+		{
+			reservations[i] = 0;
+		}
+
+		num_thread = thread_num;
+		R = 3 * thread_num * 2;
 
 		auto start{ steady_clock::now() };
 
 		for (int32_t i = 0; i < thread_num; ++i)
 		{
-			threads.emplace_back(Thread, thread_num);
+			threads.emplace_back(Benchmark, thread_num, i);
 		}
 
 		for (auto& thread : threads)
@@ -75,9 +94,11 @@ int main()
 	}
 }
 
-void Thread(int32_t num_thread)
+void Benchmark(int32_t num_thread, int32_t id)
 {
-	for (int32_t i = 0; i < 4000000 / num_thread; ++i)
+	thread_id = id;
+
+	for (int32_t i = 0; i < TEST_NUM / num_thread; ++i)
 	{
 		switch (uid_op(dre))
 		{
@@ -100,9 +121,11 @@ void Thread(int32_t num_thread)
 	}
 }
 
-void ThreadCheck(std::vector<History>* history, int32_t num_thread)
+void ThreadCheck(std::vector<History>* history, int32_t num_thread, int32_t id)
 {
-	for (int32_t i = 0; i < 4000000 / num_thread; ++i)
+	thread_id = id;
+
+	for (int32_t i = 0; i < TEST_NUM / num_thread; ++i)
 	{
 		int32_t value{ uid(dre) };
 
