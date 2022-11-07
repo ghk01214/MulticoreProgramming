@@ -41,5 +41,8 @@
     <ClCompile Include="ebr_SET.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="univ_set.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

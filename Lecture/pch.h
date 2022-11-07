@@ -10,6 +10,7 @@
 #include <array>
 #include <vector>
 #include <list>
+#include <set>
 
 #include <thread>
 #include <shared_mutex>
