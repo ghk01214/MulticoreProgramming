@@ -20,25 +20,25 @@ thread_local int32_t thread_id;
 // 합의 객체
 class Consensus {
 public:
-	Consensus() { result = -1; }
+	Consensus() : result{ -1 } {}
 	~Consensus() = default;
 
-	int32_t decide(int32_t value)
+	int64_t decide(int64_t value)
 	{
-		if (true == cas(-1, value))
+		if (cas(-1, value) == true)
 			return value;
 
 		return result;
 	}
 
 private:
-	bool cas(int32_t old_value, int32_t new_value)
+	bool cas(int64_t old_value, int64_t new_value)
 	{
-		return std::atomic_compare_exchange_strong(reinterpret_cast<std::atomic_int32_t*>(&result), &old_value, new_value);
+		return std::atomic_compare_exchange_strong(reinterpret_cast<std::atomic_int64_t*>(&result), &old_value, new_value);
 	}
 
 private:
-	int32_t result;
+	int64_t result;
 };
 
 typedef bool Response;
@@ -202,7 +202,7 @@ public:
 		while (prefer->seq == 0)
 		{
 			Node* before = GetMaxNODE();
-			Node* after = reinterpret_cast<Node*>(before->decideNext.decide(reinterpret_cast<int32_t>(prefer)));
+			Node* after = reinterpret_cast<Node*>(before->decideNext.decide(reinterpret_cast<int64_t>(prefer)));
 
 			before->next = after;
 			after->seq = before->seq + 1;
@@ -346,7 +346,7 @@ public:
 			else
 				prefer = announce[thread_id];
 
-			Node* after = reinterpret_cast<Node*>(before->decideNext.decide(reinterpret_cast<int32_t>(prefer)));
+			Node* after = reinterpret_cast<Node*>(before->decideNext.decide(reinterpret_cast<int64_t>(prefer)));
 
 			before->next = after;
 			after->seq = before->seq + 1;
