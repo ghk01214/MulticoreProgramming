@@ -7,8 +7,7 @@ class QNode
 {
 public:
 	QNode();
-	QNode(T data);
-	QNode(T data, QNode<T>* next);
+	QNode(T data, QNode<T>* next = nullptr);
 
 public:
 	T data;
@@ -17,13 +16,6 @@ public:
 
 template<typename T>
 inline QNode<T>::QNode() :
-	next{ nullptr }
-{
-}
-
-template<typename T>
-inline QNode<T>::QNode(T data) :
-	data{ data },
 	next{ nullptr }
 {
 }

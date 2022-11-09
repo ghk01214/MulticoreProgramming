@@ -38,7 +38,7 @@ void Thread(int32_t num_thread)
 {
 	for (int32_t i = 0; i < 4000000 / num_thread; ++i)
 	{
-		if (uid_op(dre) == 0 or i < 32 / num_thread)
+		if (uid_op(dre) == 1 or i < 32 / num_thread)
 			queue.push(i);
 		else
 			queue.pop();

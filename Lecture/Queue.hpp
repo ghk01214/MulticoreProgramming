@@ -1,6 +1,6 @@
 #pragma once
 
-#include "QNode.h"
+#include "QNode.hpp"
 
 template<typename T>
 class Queue
@@ -26,9 +26,9 @@ private:
 template<typename T>
 Queue<T>::Queue() :
 	_head{ new QNode<T>{ -1 } },
-	_tail{ new QNode<T>{ -1 } }
+	_tail{ _head }
 {
-	//_head->next = _tail;
+	//_head = _tail = new QNode<T>{ -1 };
 }
 
 template<typename T>
@@ -77,13 +77,15 @@ inline void Queue<T>::clear()
 {
 	QNode<T>* node{ _head->next };
 
-	while (node != _tail->next)
+	while (node != nullptr)
 	{
 		QNode<T>* temp{ node };
 		node = node->next;
 
 		delete temp;
 	}
+
+	_tail = _head;
 }
 
 template<typename T>
@@ -93,11 +95,8 @@ inline void Queue<T>::Print()
 
 	for (int32_t i = 0; i < 20; ++i)
 	{
-		if (node != _tail->next)
-		{
-			std::cout << std::format("{}, ", node->data);
-			node = node->next;
-		}
+		std::cout << std::format("{}, ", node->data);
+		node = node->next;
 	}
 
 	std::cout << std::endl;
