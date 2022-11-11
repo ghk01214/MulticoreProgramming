@@ -1,15 +1,4 @@
-//#include <iostream>
-//#include <stdlib.h>
-//#include <vector>
-//#include <thread>
-//#include <chrono>
-//#include <mutex>
-//#include <atomic>
-//#include <set>
 #include "pch.h"
-
-// x86 환경에서만 작동
-// x64 환경에서 작동시킬려면 수정 필요
 
 static const auto NUM_TEST = 4000;
 static const auto KEY_RANGE = 1000;
@@ -327,6 +316,7 @@ public:
 		for (int32_t i = 0; i < MAX_THREAD; ++i)
 		{
 			head[i] = tail;
+			announce[i] = tail;
 		}
 	}
 
