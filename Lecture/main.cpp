@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "Queue.hpp"
 
+using namespace std::chrono;
+
 Queue<int32_t> queue;
 
 std::default_random_engine dre{ std::random_device{}() };

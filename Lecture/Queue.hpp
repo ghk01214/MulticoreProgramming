@@ -7,20 +7,24 @@ class Queue
 {
 public:
 	Queue();
-	~Queue();
+	~Queue() = default;
 
 	void push(T data);
 	T pop();
 	void clear();
 
 	void Print();
+private:
+	bool cas(QNode<T>* volatile* next, QNode<T>* old_p, QNode<T>* new_p)
+	{
+		return std::atomic_compare_exchange_strong(reinterpret_cast<volatile std::atomic_int64_t*>(next),
+			reinterpret_cast<int64_t*>(&old_p),
+			reinterpret_cast<int64_t>(new_p));
+	}
 
 private:
-	QNode<T>* _head;
-	QNode<T>* _tail;
-
-	std::shared_mutex lock_push;
-	std::shared_mutex lock_pop;
+	QNode<T>* volatile _head;
+	QNode<T>* volatile _tail;
 };
 
 template<typename T>
@@ -28,48 +32,64 @@ Queue<T>::Queue() :
 	_head{ new QNode<T>{ -1 } },
 	_tail{ _head }
 {
-	//_head = _tail = new QNode<T>{ -1 };
-}
-
-template<typename T>
-Queue<T>::~Queue()
-{
 }
 
 template<typename T>
 inline void Queue<T>::push(T data)
 {
-	lock_push.lock();
-
 	QNode<T>* node{ new QNode<T>{ data } };
 
-	_tail->next = node;
-	_tail = node;
+	while (true)
+	{
+		QNode<T>* last{ _tail };
+		QNode<T>* next{ last->next };
 
-	lock_push.unlock();
+		if (last != _tail)
+			continue;
+
+		if (next != nullptr)
+		{
+			cas(&_tail, last, next);
+			continue;
+		}
+
+		if (cas(&last->next, nullptr, node) == false)
+			continue;
+		
+		cas(&_tail, last, node);
+		return;
+	}
 }
 
 template<typename T>
 inline T Queue<T>::pop()
 {
-	T result;
-
-	lock_pop.lock();
-
-	if (_head->next == nullptr)
+	while (true)
 	{
-		lock_pop.unlock();
-		return false;
+		QNode<T>* first{ _head };
+		QNode<T>* next{ first->next };
+		QNode<T>* last{ _tail };
+
+		if (first != _head)
+			continue;
+
+		if (next == nullptr)
+			return -1;
+
+		if (first == last)
+		{
+			cas(&_tail, last, next);
+			continue;
+		}
+
+		T value{ next->data };
+
+		if (cas(&_head, first, next) == false)
+			continue;
+
+		delete first;
+		return value;
 	}
-
-	result = _head->next->data;
-	QNode<T>* temp{ _head };
-	_head = _head->next;
-
-	lock_pop.unlock();
-	delete temp;
-
-	return result;
 }
 
 template<typename T>
@@ -85,6 +105,7 @@ inline void Queue<T>::clear()
 		delete temp;
 	}
 
+	_head->next = nullptr;
 	_tail = _head;
 }
 
