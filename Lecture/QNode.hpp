@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pch.h"
+#include "StampPtr.hpp"
 
 template<typename T>
 class QNode
@@ -11,7 +12,7 @@ public:
 
 public:
 	T data;
-	QNode<T>* next;
+	StampPtr<T> next;
 };
 
 template<typename T>

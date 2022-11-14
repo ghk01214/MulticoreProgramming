@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <limits>
 #include <random>
+#include <Windows.h>
 
 #include <array>
 #include <vector>

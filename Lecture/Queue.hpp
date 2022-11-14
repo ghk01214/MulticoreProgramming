@@ -15,23 +15,20 @@ public:
 
 	void Print();
 private:
-	bool cas(QNode<T>* volatile* next, QNode<T>* old_p, QNode<T>* new_p)
-	{
-		return std::atomic_compare_exchange_strong(reinterpret_cast<volatile std::atomic_int64_t*>(next),
-			reinterpret_cast<int64_t*>(&old_p),
-			reinterpret_cast<int64_t>(new_p));
-	}
+	bool cas(StampPtr<T>* next, QNode<T>* old_ptr, int64_t old_stamp, QNode<T>* new_ptr, int64_t new_stamp);
 
 private:
-	QNode<T>* volatile _head;
-	QNode<T>* volatile _tail;
+	StampPtr<T> _head;
+	StampPtr<T> _tail;
 };
 
 template<typename T>
-Queue<T>::Queue() :
-	_head{ new QNode<T>{ -1 } },
-	_tail{ _head }
+Queue<T>::Queue()
 {
+	QNode<T>* node{ new QNode<T>{ -1 } };
+
+	_head.set(node);
+	_tail.set(node);
 }
 
 template<typename T>
@@ -41,22 +38,22 @@ inline void Queue<T>::push(T data)
 
 	while (true)
 	{
-		QNode<T>* last{ _tail };
-		QNode<T>* next{ last->next };
+		StampPtr<T> last{ _tail };
+		StampPtr<T> next{ last.ptr->next };
 
-		if (last != _tail)
+		if (last.stamp != _tail.stamp)
 			continue;
 
-		if (next != nullptr)
+		if (next.ptr != nullptr)
 		{
-			cas(&_tail, last, next);
+			cas(&_tail, last.ptr, last.stamp, next.ptr, last.stamp + 1);
 			continue;
 		}
 
-		if (cas(&last->next, nullptr, node) == false)
+		if (cas(&last.ptr->next, nullptr, next.stamp, node, next.stamp + 1) == false)
 			continue;
 		
-		cas(&_tail, last, node);
+		cas(&_tail, last.ptr, last.stamp, node, last.stamp + 1);
 		return;
 	}
 }
@@ -64,7 +61,7 @@ inline void Queue<T>::push(T data)
 template<typename T>
 inline T Queue<T>::pop()
 {
-	while (true)
+	/*while (true)
 	{
 		QNode<T>* first{ _head };
 		QNode<T>* next{ first->next };
@@ -89,36 +86,51 @@ inline T Queue<T>::pop()
 
 		delete first;
 		return value;
-	}
+	}*/
+
+	return false;
 }
 
 template<typename T>
 inline void Queue<T>::clear()
 {
-	QNode<T>* node{ _head->next };
-
-	while (node != nullptr)
+	while (_head.get()->next.get() != nullptr)
 	{
-		QNode<T>* temp{ node };
-		node = node->next;
+		QNode<T>* node{ _head.get() };
 
-		delete temp;
+		_head.set(_head.get()->next.get());
+		delete node;
 	}
 
-	_head->next = nullptr;
-	_tail = _head;
+	_tail.ptr = _head.ptr;
 }
 
 template<typename T>
 inline void Queue<T>::Print()
 {
-	QNode<T>* node{ _head->next };
+	StampPtr<T> node{ _head.ptr->next };
 
 	for (int32_t i = 0; i < 20; ++i)
 	{
-		std::cout << std::format("{}, ", node->data);
-		node = node->next;
+		if (node.ptr == nullptr)
+			break;
+
+		std::cout << std::format("{}, ", node.ptr->data);
+		node = node.ptr->next;
 	}
 
 	std::cout << std::endl;
+}
+
+template<typename T>
+inline bool Queue<T>::cas(StampPtr<T>* next, QNode<T>* old_ptr, int64_t old_stamp, QNode<T>* new_ptr, int64_t new_stamp)
+{
+	StampPtr<T> old_st{ old_ptr, old_stamp };
+
+	return InterlockedCompareExchange128(
+		reinterpret_cast<int64_t volatile*>(next),
+		reinterpret_cast<int64_t>(new_ptr),
+		new_stamp,
+		reinterpret_cast<int64_t*>(&old_st)
+	);
 }
