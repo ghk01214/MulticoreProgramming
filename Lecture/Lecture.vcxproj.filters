@@ -45,6 +45,12 @@
     <ClInclude Include="StampPtr.hpp">
       <Filter>Queue</Filter>
     </ClInclude>
+    <ClInclude Include="SNode.hpp">
+      <Filter>Stack</Filter>
+    </ClInclude>
+    <ClInclude Include="Stack.hpp">
+      <Filter>Stack</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
