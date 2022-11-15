@@ -13,45 +13,54 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="List">
+      <UniqueIdentifier>{1cbacdc6-fd0d-45a9-aafe-7cbe9ccc36f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Queue">
+      <UniqueIdentifier>{6eb2cd6d-e97d-4f31-bb6c-ce9fcd8a1c6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Stack">
+      <UniqueIdentifier>{66f5a5ef-9826-4bb4-b2f6-e1ea8a2c28e4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="List.hpp">
+      <Filter>List</Filter>
+    </ClInclude>
     <ClInclude Include="MarkableReference.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>List</Filter>
     </ClInclude>
     <ClInclude Include="Node.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="List.hpp">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="Queue.hpp">
-      <Filter>헤더 파일</Filter>
+      <Filter>List</Filter>
     </ClInclude>
     <ClInclude Include="QNode.hpp">
-      <Filter>헤더 파일</Filter>
+      <Filter>Queue</Filter>
+    </ClInclude>
+    <ClInclude Include="Queue.hpp">
+      <Filter>Queue</Filter>
     </ClInclude>
     <ClInclude Include="StampPtr.hpp">
-      <Filter>헤더 파일</Filter>
+      <Filter>Queue</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="SET.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="ebr_SET.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="SET.cpp">
+      <Filter>List</Filter>
     </ClCompile>
     <ClCompile Include="univ_set.cpp">
-      <Filter>소스 파일</Filter>
+      <Filter>List</Filter>
+    </ClCompile>
+    <ClCompile Include="ebr_SET.cpp">
+      <Filter>List</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

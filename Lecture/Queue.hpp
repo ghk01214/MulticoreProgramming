@@ -61,32 +61,33 @@ inline void Queue<T>::push(T data)
 template<typename T>
 inline T Queue<T>::pop()
 {
-	/*while (true)
+	while (true)
 	{
-		QNode<T>* first{ _head };
-		QNode<T>* next{ first->next };
-		QNode<T>* last{ _tail };
+		StampPtr<T> first{ _head };
+		StampPtr<T> next{ first.ptr->next };
+		StampPtr<T> last{ _tail };
 
-		if (first != _head)
+		if (first.stamp != _head.stamp)
 			continue;
 
-		if (next == nullptr)
+		if (next.ptr == nullptr)
 			return -1;
 
-		if (first == last)
+		if (first.stamp == last.stamp)
 		{
-			cas(&_tail, last, next);
+			cas(&_tail, last.ptr, last.stamp, next.ptr, last.stamp + 1);
 			continue;
 		}
 
-		T value{ next->data };
+		T value{ next.ptr->data };
 
-		if (cas(&_head, first, next) == false)
+		if (cas(&_head, first.ptr, first.stamp, next.ptr, first.stamp + 1) == false)
 			continue;
 
-		delete first;
+		//delete first;
+		first.release();
 		return value;
-	}*/
+	}
 
 	return false;
 }
