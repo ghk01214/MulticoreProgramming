@@ -9,7 +9,7 @@ public:
 
 public:
 	T data;
-	SNode<T>* volatile next;
+	SNode<T>* next;
 };
 
 template<typename T>

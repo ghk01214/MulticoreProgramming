@@ -14,11 +14,11 @@ public:
 	void clear();
 
 	void Print();
+private:
+	bool cas(SNode<T>* volatile* next, SNode<T>* old_ptr, SNode<T>* new_ptr);
 
 private:
-	SNode<T>* _top;
-
-	std::shared_mutex _lock;
+	SNode<T>* volatile _top;
 };
 
 template<typename T>
@@ -32,41 +32,43 @@ inline void Stack<T>::push(T data)
 {
 	SNode<T>* node{ new SNode<T>{ data } };
 
-	_lock.lock();
+	while (true)
+	{
+		SNode<T>* ptr{ _top };
+		node->next = ptr;
 
-	node->next = _top;
-	_top = node;
-
-	_lock.unlock();
+		if (cas(&_top, ptr, node) == true)
+			return;
+	}
 }
 
 template<typename T>
 inline T Stack<T>::pop()
 {
-	_lock.lock();
-
-	if (_top == nullptr)
+	while (true)
 	{
-		_lock.unlock();
-		return -2;
+		SNode<T>* node{ _top };
+
+		if (node != _top)
+			continue;
+
+		if (node == nullptr)
+			return -2;
+
+		T data{ node->data };
+		SNode<T>* next{ node->next };
+
+		if (cas(&_top, node, next) == false)
+			continue;
+
+		//delete node;
+		return data;
 	}
-
-	T data{ _top->data };
-	SNode<T>* ptr{ _top };
-
-	_top = _top->next;
-
-	_lock.unlock();
-	delete ptr;
-
-	return data;
 }
 
 template<typename T>
 inline void Stack<T>::clear()
 {
-	//SNode<T>* node{ _top };
-
 	while (_top != nullptr)
 	{
 		SNode<T>* temp{ _top };
@@ -88,4 +90,14 @@ inline void Stack<T>::Print()
 	}
 
 	std::cout << std::endl;
+}
+
+template<typename T>
+inline bool Stack<T>::cas(SNode<T>* volatile* next, SNode<T>* old_ptr, SNode<T>* new_ptr)
+{
+	return std::atomic_compare_exchange_strong(
+		reinterpret_cast<volatile std::atomic_int64_t*>(next),
+		reinterpret_cast<int64_t*>(&old_ptr),
+		reinterpret_cast<int64_t>(new_ptr)
+	);
 }
