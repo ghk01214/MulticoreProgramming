@@ -84,7 +84,7 @@ inline T Queue<T>::pop()
 
 		T value{ next.ptr->data };
 
-		if (cas(&_head, first.ptr, first.stamp, next.ptr, first.stamp + 1) == false)
+		if (cas(&_head, first.ptr, first.stamp, next.ptr, first.stamp + 1) == true)
 		{
 			first.release();
 			return value;
