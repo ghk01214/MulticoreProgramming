@@ -1,7 +1,7 @@
 #pragma once
 
-#include "pch.h"
-#include "Node.h"
+#include "MarkablePtr.h"
+#include "LNode.h"
 
 template<typename T>
 class List
@@ -17,20 +17,20 @@ public:
 
 	void Print();
 private:
-	void Find(T value, Node<T>*& prev, Node<T>*& current);
+	void Find(T value, LNode<T>*& prev, LNode<T>*& current);
 
 private:
-	Node<T> _head;
-	Node<T> _tail;
+	LNode<T> _head;
+	LNode<T> _tail;
 };
 
 template<typename T>
 List<T>::List()
 {
-	_head.data = std::numeric_limits<int>::min();
-	_tail.data = std::numeric_limits<int>::max();
+	_head.data = 0x80000000;	// == std::numeric_limits<int>::min();	// defined in <limits> header
+	_tail.data = 0x7FFFFFFF;	// == std::numeric_limits<int>::max();	// defined in <limits> header
 
-	_head.next = MarkableReference<T>{ false, &_tail };
+	_head.next = MarkablePtr<T>{ false, &_tail };
 }
 
 template<typename T>
@@ -43,15 +43,15 @@ inline bool List<T>::insert(T value)
 {
 	while (true)
 	{
-		Node<T>* prev;
-		Node<T>* current;
+		LNode<T>* prev;
+		LNode<T>* current;
 
 		Find(value, prev, current);
 
 		if (current->data == value)
 			return false;
 
-		Node<T>* node{ new Node<T>{ value, current } };
+		LNode<T>* node{ new LNode<T>{ value, current } };
 
 		if (prev->next.cas(current, node, false, false) == true)
 			return true;
@@ -65,15 +65,15 @@ inline bool List<T>::remove(T value)
 {
 	while (true)
 	{
-		Node<T>* prev;
-		Node<T>* current;
+		LNode<T>* prev;
+		LNode<T>* current;
 
 		Find(value, prev, current);
 
 		if (current->data != value)
 			return false;
 		
-		Node<T>* success{ current->next.get_ptr() };
+		LNode<T>* success{ current->next.get_ptr() };
 
 		if (current->next.try_change_mark(success, true) == false)
 			continue;
@@ -87,7 +87,7 @@ inline bool List<T>::remove(T value)
 template<typename T>
 inline bool List<T>::contains(T value)
 {
-	Node<T>* current{ _head.next.get_ptr() };
+	LNode<T>* current{ _head.next.get_ptr() };
 	bool removed;
 
 	while (current->data < value)
@@ -102,23 +102,23 @@ inline bool List<T>::contains(T value)
 template<typename T>
 inline void List<T>::clear()
 {
-	Node<T>* node{ _head.next.get_ptr() };
+	LNode<T>* node{ _head.next.get_ptr() };
 
 	while (node != &_tail)
 	{
-		Node<T>* temp{ node };
+		LNode<T>* temp{ node };
 		node = node->next.get_ptr();
 
 		delete temp;
 	}
 
-	_head.next = MarkableReference<T>{ false, &_tail };
+	_head.next = MarkablePtr<T>{ false, &_tail };
 }
 
 template<typename T>
 inline void List<T>::Print()
 {
-	Node<T>* node{ _head.next.get_ptr() };
+	LNode<T>* node{ _head.next.get_ptr() };
 
 	for (int32_t i = 0; i < 20; ++i)
 	{
@@ -133,7 +133,7 @@ inline void List<T>::Print()
 }
 
 template<typename T>
-inline void List<T>::Find(T value, Node<T>*& prev, Node<T>*& current)
+inline void List<T>::Find(T value, LNode<T>*& prev, LNode<T>*& current)
 {
 	while (true)
 	{
@@ -144,7 +144,7 @@ inline void List<T>::Find(T value, Node<T>*& prev, Node<T>*& current)
 		while (true)
 		{
 			bool removed;
-			Node<T>* success{ current->next.get_ptr_n_mark(&removed) };
+			LNode<T>* success{ current->next.get_ptr_n_mark(&removed) };
 
 			while (removed == true)
 			{

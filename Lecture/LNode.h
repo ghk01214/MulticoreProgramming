@@ -1,36 +1,36 @@
 #pragma once
 
-#include "pch.h"
-#include "MarkableReference.h"
+template<typename T>
+class MarkablePtr;
 
 template<typename T>
-class Node
+class LNode
 {
 public:
-	Node();
-	Node(T data);
-	Node(T data, Node<T>* next);
+	LNode();
+	LNode(T data);
+	LNode(T data, LNode<T>* next);
 
 public:
 	T data;
-	MarkableReference<T> next;
+	MarkablePtr<T> next;
 };
 
 template<typename T>
-inline Node<T>::Node() :
+inline LNode<T>::LNode() :
 	next{ false, nullptr }
 {
 }
 
 template<typename T>
-inline Node<T>::Node(T data) :
+inline LNode<T>::LNode(T data) :
 	data{ data },
 	next{ false, nullptr }
 {
 }
 
 template<typename T>
-inline Node<T>::Node(T data, Node<T>* next) :
+inline LNode<T>::LNode(T data, LNode<T>* next) :
 	data{ data },
 	next{ false, next }
 {
