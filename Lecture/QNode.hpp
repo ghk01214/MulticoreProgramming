@@ -1,14 +1,15 @@
 #pragma once
 
-#include "pch.h"
-#include "StampPtr.hpp"
+template<typename T>
+class StampPtr;
 
 template<typename T>
 class QNode
 {
 public:
 	QNode();
-	QNode(T data, QNode<T>* next = nullptr);
+	QNode(T data);
+	QNode(T data, StampPtr<T> next);
 
 public:
 	T data;
@@ -22,7 +23,14 @@ inline QNode<T>::QNode() :
 }
 
 template<typename T>
-inline QNode<T>::QNode(T data, QNode<T>* next) :
+inline QNode<T>::QNode(T data) :
+	data{ data },
+	next{ nullptr }
+{
+}
+
+template<typename T>
+inline QNode<T>::QNode(T data, StampPtr<T> next) :
 	data{ data },
 	next{ next }
 {

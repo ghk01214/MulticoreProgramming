@@ -1,5 +1,6 @@
 #pragma once
 
+#include "StampPtr.hpp"
 #include "QNode.hpp"
 
 template<typename T>
@@ -23,7 +24,9 @@ private:
 };
 
 template<typename T>
-Queue<T>::Queue()
+Queue<T>::Queue() :
+	_head{ nullptr },
+	_tail{ nullptr }
 {
 	QNode<T>* node{ new QNode<T>{ -1 } };
 
@@ -50,11 +53,11 @@ inline void Queue<T>::push(T data)
 			continue;
 		}
 
-		if (cas(&last.ptr->next, nullptr, next.stamp, node, next.stamp + 1) == false)
-			continue;
-		
-		cas(&_tail, last.ptr, last.stamp, node, last.stamp + 1);
-		return;
+		if (cas(&last.ptr->next, nullptr, next.stamp, node, next.stamp + 1) == true)
+		{
+			cas(&_tail, last.ptr, last.stamp, node, last.stamp + 1);
+			return;
+		}
 	}
 }
 
@@ -82,14 +85,11 @@ inline T Queue<T>::pop()
 		T value{ next.ptr->data };
 
 		if (cas(&_head, first.ptr, first.stamp, next.ptr, first.stamp + 1) == false)
-			continue;
-
-		//delete first;
-		first.release();
-		return value;
+		{
+			first.release();
+			return value;
+		}
 	}
-
-	return false;
 }
 
 template<typename T>
@@ -130,8 +130,8 @@ inline bool Queue<T>::cas(StampPtr<T>* next, QNode<T>* old_ptr, int64_t old_stam
 
 	return InterlockedCompareExchange128(
 		reinterpret_cast<int64_t volatile*>(next),
-		reinterpret_cast<int64_t>(new_ptr),
 		new_stamp,
+		reinterpret_cast<int64_t>(new_ptr),
 		reinterpret_cast<int64_t*>(&old_st)
 	);
 }
