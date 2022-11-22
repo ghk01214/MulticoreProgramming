@@ -51,6 +51,15 @@
     <ClInclude Include="Stack.hpp">
       <Filter>Stack</Filter>
     </ClInclude>
+    <ClInclude Include="BackOff.h">
+      <Filter>Stack</Filter>
+    </ClInclude>
+    <ClInclude Include="Eliminator.hpp">
+      <Filter>Stack</Filter>
+    </ClInclude>
+    <ClInclude Include="Exchanger.hpp">
+      <Filter>Stack</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -67,6 +76,9 @@
     </ClCompile>
     <ClCompile Include="ebr_SET.cpp">
       <Filter>List</Filter>
+    </ClCompile>
+    <ClCompile Include="BackOff.cpp">
+      <Filter>Stack</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

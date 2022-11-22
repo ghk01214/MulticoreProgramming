@@ -14,7 +14,7 @@ void Thread(int32_t num_thread);
 
 int main()
 {
-	for (int32_t thread_num = 1; thread_num <= 16; thread_num *= 2)
+	for (int32_t thread_num = 1; thread_num <= MAX_THREAD; thread_num *= 2)
 	{
 		std::vector<std::thread> threads;
 		cont.clear();

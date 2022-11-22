@@ -18,3 +18,5 @@
 #include <atomic>
 
 using namespace std::chrono;
+
+#define MAX_THREAD 16
