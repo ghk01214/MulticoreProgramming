@@ -17,7 +17,6 @@ public:
 	void Print();
 private:
 	bool cas(SNode<T>* volatile* next, SNode<T>* old_ptr, SNode<T>* new_ptr);
-	bool cas32(SNode<T>* volatile* next, SNode<T>* old_ptr, SNode<T>* new_ptr);
 
 private:
 	SNode<T>* volatile _top;
@@ -41,7 +40,7 @@ inline void Stack<T>::push(T data)
 		SNode<T>* ptr{ _top };
 		node->next = ptr;
 
-		if (cas32(&_top, ptr, node) == true)
+		if (cas(&_top, ptr, node) == true)
 			return;
 
 		if (_eliminator.visit(data) == -1)
@@ -52,14 +51,9 @@ inline void Stack<T>::push(T data)
 template<typename T>
 inline T Stack<T>::pop()
 {
-	//BackOff back;
-
 	while (true)
 	{
 		SNode<T>* node{ _top };
-
-		if (node != _top)
-			continue;
 
 		if (node == nullptr)
 			return -2;
@@ -67,14 +61,16 @@ inline T Stack<T>::pop()
 		T data{ node->data };
 		SNode<T>* next{ node->next };
 
-		if (cas32(&_top, node, next) == false)
-		{
-			//back.InterruptedException();
+		if (node != _top)
 			continue;
-		}
 
-		//delete node;
-		return data;
+		if (cas(&_top, node, next) == true)
+			return data;
+
+		int64_t ret{ _eliminator.visit(-1) };
+		
+		if (ret != -1)
+			return ret;
 	}
 }
 
@@ -108,18 +104,14 @@ template<typename T>
 inline bool Stack<T>::cas(SNode<T>* volatile* next, SNode<T>* old_ptr, SNode<T>* new_ptr)
 {
 	return std::atomic_compare_exchange_strong(
+#if _WIN64
 		reinterpret_cast<volatile std::atomic_int64_t*>(next),
 		reinterpret_cast<int64_t*>(&old_ptr),
 		reinterpret_cast<int64_t>(new_ptr)
-	);
-}
-
-template<typename T>
-inline bool Stack<T>::cas32(SNode<T>* volatile* next, SNode<T>* old_ptr, SNode<T>* new_ptr)
-{
-	return std::atomic_compare_exchange_strong(
+#else
 		reinterpret_cast<volatile std::atomic_int32_t*>(next),
 		reinterpret_cast<int32_t*>(&old_ptr),
 		reinterpret_cast<int32_t>(new_ptr)
+#endif
 	);
 }

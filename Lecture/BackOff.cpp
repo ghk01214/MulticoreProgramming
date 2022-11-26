@@ -1,3 +1,4 @@
+#ifndef _WIN64
 #include "pch.h"
 #include "BackOff.h"
 
@@ -29,8 +30,10 @@ void BackOff::InterruptedException()
 	if (_limit > _delay.max)
 		_limit = _delay.max;
 
-//	_asm mov eax, delay;
-//loop:
-//	_asm dec eax;
-//	_asm jnz loop;
+	_asm mov eax, delay;
+loop:
+	_asm dec eax;
+	_asm jnz loop;
 }
+
+#endif

@@ -7,15 +7,17 @@ public:
 	Exchanger();
 	~Exchanger();
 
-	int32_t exchange(T data, bool* busy);
+	int64_t exchange(T data, bool* busy);
+private:
+	bool cas(T* value, T* old_value, T new_value);
 
 private:
-	int32_t EMPTY;
-	int32_t WAITING;
-	int32_t BUSY;
-	int32_t TIME_OUT;
+	int64_t EMPTY;
+	int64_t WAITING;
+	int64_t BUSY;
+	int64_t TIME_OUT;
 
-	int32_t _value;		// MSB 2 bit, 00 : EMPTY, 01 : WAITING, 02 : BUSY
+	T _value;		// MSB 2 bit, 00 : EMPTY, 01 : WAITING, 02 : BUSY
 };
 
 template<typename T>
@@ -34,27 +36,27 @@ inline Exchanger<T>::~Exchanger()
 }
 
 template<typename T>
-inline int32_t Exchanger<T>::exchange(T data, bool* busy)
+inline int64_t Exchanger<T>::exchange(T data, bool* busy)
 {
 	for (int32_t j = 0; j < TIME_OUT; ++j)
 	{
-		int32_t current_value{ data };
-		int32_t state{ _value >> 30 };
+		T current_value{ data };
+		int64_t state{ _value >> 62 };
 
 		switch (state)
 		{
 			case 0:
 			{
-				int32_t new_value{ (WAITING << 30) | data };
+				T new_value{ static_cast<T>((WAITING << 62) | data) };
 
-				if (std::atomic_compare_exchange_strong(&_value, &current_value, new_value) == false)
+				if (cas(&_value, &current_value, new_value) == false)
 					break;
 
 				bool success{ false };
 
 				for (int32_t i = 0; i < TIME_OUT; ++i)
 				{
-					if (BUSY == (_value >> 30))
+					if (BUSY == (_value >> 62))
 					{
 						success = true;
 						break;
@@ -63,16 +65,16 @@ inline int32_t Exchanger<T>::exchange(T data, bool* busy)
 
 				if (success == true)
 				{
-					int32_t ret{ _value & 0x3FFFFFFF };
+					int64_t ret{ _value & 0x3FFFFFFFFFFFFFFF };
 					_value = 0;
 
 					return ret;
 				}
 
-				if (std::atomic_compare_exchange_strong(&_value, &new_value, 0) == true)
+				if (cas(&_value, &new_value, 0) == true)
 					return -1;
 
-				int32_t ret{ _value & 0x3FFFFFFF };
+				int64_t ret{ _value & 0x3FFFFFFFFFFFFFFF };
 				_value = 0;
 
 				return ret;
@@ -81,10 +83,10 @@ inline int32_t Exchanger<T>::exchange(T data, bool* busy)
 			break;
 			case 1:
 			{
-				int32_t new_value{ (BUSY << 30) | data };
+				T new_value{ static_cast<T>((BUSY << 62) | data) };
 
-				if (std::atomic_compare_exchange_strong(&_value, &current_value, new_value) == true)
-					return current_value & 0x3FFFFFFF;
+				if (cas(&_value, &current_value, new_value) == true)
+					return current_value & 0x3FFFFFFFFFFFFFFF;
 			}
 			break;
 			case 2:
@@ -98,4 +100,14 @@ inline int32_t Exchanger<T>::exchange(T data, bool* busy)
 	*busy = true;
 
 	return -2;
+}
+
+template<typename T>
+inline bool Exchanger<T>::cas(T* value, T* old_value, T new_value)
+{
+	return std::atomic_compare_exchange_strong(
+		reinterpret_cast<std::atomic_int64_t*>(value),
+		reinterpret_cast<int64_t*>(old_value),
+		static_cast<int64_t>(new_value)
+	);
 }

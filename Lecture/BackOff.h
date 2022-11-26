@@ -1,5 +1,6 @@
 #pragma once
 
+#ifndef _WIN64
 class BackOff
 {
 public:
@@ -17,3 +18,4 @@ private:
 	} _delay;
 	int32_t _limit;
 };
+#endif

@@ -80,5 +80,8 @@
     <ClCompile Include="BackOff.cpp">
       <Filter>Stack</Filter>
     </ClCompile>
+    <ClCompile Include="stack.cpp">
+      <Filter>Stack</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
