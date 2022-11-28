@@ -22,6 +22,9 @@
     <Filter Include="Stack">
       <UniqueIdentifier>{66f5a5ef-9826-4bb4-b2f6-e1ea8a2c28e4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SkipList">
+      <UniqueIdentifier>{69fbc79f-21af-47e5-93c8-ab95f788287b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -59,6 +62,12 @@
     </ClInclude>
     <ClInclude Include="Exchanger.hpp">
       <Filter>Stack</Filter>
+    </ClInclude>
+    <ClInclude Include="SLNode.h">
+      <Filter>SkipList</Filter>
+    </ClInclude>
+    <ClInclude Include="SkipList.hpp">
+      <Filter>SkipList</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

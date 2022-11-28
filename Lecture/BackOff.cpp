@@ -1,5 +1,5 @@
-#ifndef _WIN64
 #include "pch.h"
+#ifndef _WIN64
 #include "BackOff.h"
 
 extern std::default_random_engine dre;

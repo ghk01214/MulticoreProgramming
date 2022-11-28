@@ -160,6 +160,8 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="QNode.hpp" />
     <ClInclude Include="Queue.hpp" />
+    <ClInclude Include="SkipList.hpp" />
+    <ClInclude Include="SLNode.h" />
     <ClInclude Include="SNode.hpp" />
     <ClInclude Include="Stack.hpp" />
     <ClInclude Include="StampPtr.hpp" />
@@ -192,6 +194,7 @@
     <ClCompile Include="stack.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="univ_set.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
