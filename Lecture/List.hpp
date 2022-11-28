@@ -27,8 +27,8 @@ private:
 template<typename T>
 List<T>::List()
 {
-	_head.data = 0x80000000;	// == std::numeric_limits<int>::min();	// defined in <limits> header
-	_tail.data = 0x7FFFFFFF;	// == std::numeric_limits<int>::max();	// defined in <limits> header
+	_head.data = _I32_MIN;	// == std::numeric_limits<int32_t>::min();	// defined in <limits> header
+	_tail.data = _I32_MAX;	// == std::numeric_limits<int32_t>::max();	// defined in <limits> header
 
 	_head.next = MarkablePtr<T>{ false, &_tail };
 }

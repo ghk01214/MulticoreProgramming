@@ -4,7 +4,7 @@ template<typename T>
 class SNode
 {
 public:
-	SNode(T data = nullptr);
+	SNode(T data);
 	SNode(T data, SNode<T>* next);
 
 public:
