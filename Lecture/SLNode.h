@@ -7,7 +7,7 @@ class SLNode
 {
 public:
 	SLNode();
-	SLNode(T data, int32_t top);
+	SLNode(T data, int32_t top_level);
 
 public:
 	T data;
@@ -26,9 +26,9 @@ inline SLNode<T>::SLNode() :
 }
 
 template<typename T>
-inline SLNode<T>::SLNode(T data, int32_t top) :
+inline SLNode<T>::SLNode(T data, int32_t top_level) :
 	data{ data },
-	top_level{ top }
+	top_level{ top_level }
 {
 	for (auto& node : next)
 	{

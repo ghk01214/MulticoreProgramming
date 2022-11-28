@@ -1,8 +1,8 @@
 #include "pch.h"
-#include "List.hpp"
-#include "Queue.hpp"
-#include "Stack.hpp"
 #include "SkipList.hpp"
+#include "List.hpp"
+#include "Stack.hpp"
+#include "Queue.hpp"
 
 //List<int32_t> cont;
 //Queue<int32_t> cont;
@@ -10,7 +10,7 @@
 SkipList<int32_t> cont;
 
 std::default_random_engine dre{ std::random_device{}() };
-std::uniform_int_distribution<int32_t> uid{ 1, 1000 };
+std::uniform_int_distribution<int32_t> uid{ 0, 999 };
 std::uniform_int_distribution<int32_t> uid_op{ 0, 2 };
 
 struct History

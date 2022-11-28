@@ -1,6 +1,5 @@
 #pragma once
 
-#include "MarkablePtr.h"
 #include "SLNode.h"
 
 template<typename T>
@@ -31,8 +30,8 @@ template<typename T>
 SkipList<T>::SkipList() :
 	uid_level{ 0, 1 }
 {
-	_head.data = 0x8000000000000000;	// == std::numeric_limits<int>::min();	// defined in <limits> header
-	_tail.data = 0x7FFFFFFFFFFFFFFF;	// == std::numeric_limits<int>::max();	// defined in <limits> header
+	_head.data = _I32_MAX;		// == std::numeric_limits<int32_t>::min()	// defined in <limits> header
+	_tail.data = _I32_MIN;		// == std::numeric_limits<int32_t>::max()	// defined in <limits> header
 
 	_head.top_level = MAX_LEVEL;
 	_tail.top_level = MAX_LEVEL;
@@ -81,7 +80,7 @@ inline bool SkipList<T>::insert(T value)
 		node->next[i] = current[i];
 		prev[i]->next[i] = node;
 	}
-
+	
 	lock.unlock();
 	return true;
 }
@@ -101,7 +100,7 @@ inline bool SkipList<T>::remove(T value)
 		return false;
 	}
 	
-	for (int32_t i = 0; i <= MAX_LEVEL; ++i)
+	for (int32_t i = 0; i <= current[0]->top_level; ++i)
 	{
 		prev[i]->next[i] = current[i]->next[i];
 	}
@@ -157,7 +156,7 @@ inline void SkipList<T>::Print()
 
 	for (int32_t i = 0; i < 20; ++i)
 	{
-		if (node != &_tail)
+		if (node == &_tail)
 			break;
 
 		std::cout << std::format("{}, ", node->data);
