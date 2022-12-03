@@ -92,5 +92,11 @@
     <ClCompile Include="stack.cpp">
       <Filter>Stack</Filter>
     </ClCompile>
+    <ClCompile Include="SKIPLIST.cpp">
+      <Filter>SkipList</Filter>
+    </ClCompile>
+    <ClCompile Include="aaa.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

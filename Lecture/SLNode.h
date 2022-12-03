@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 inline constexpr int32_t MAX_LEVEL{ 10 };
 
@@ -9,14 +9,14 @@ public:
 	SLNode();
 	SLNode(T data, int32_t top_level);
 
-	void lock() { lock.lock(); }
-	void unlock() { lock.unlock(); }
+	void lock() { r_lock.lock(); }
+	void unlock() { r_lock.unlock(); }
 
 public:
 	T data;
 	int32_t top_level;
 	SLNode<T>* volatile next[MAX_LEVEL + 1];
-	std::recursive_mutex lock;
+	std::recursive_mutex r_lock;
 	volatile bool removed;
 	volatile bool fully_linked;
 };

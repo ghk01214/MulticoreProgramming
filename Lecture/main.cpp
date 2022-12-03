@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "SkipList.hpp"
 #include "List.hpp"
 #include "Stack.hpp"
@@ -11,7 +11,6 @@ SkipList<int32_t> cont;
 
 std::default_random_engine dre{ std::random_device{}() };
 std::uniform_int_distribution<int32_t> uid{ 0, 999 };
-std::uniform_int_distribution<int32_t> uid_op{ 0, 2 };
 
 struct History
 {
@@ -85,7 +84,7 @@ void Thread(int32_t num_thread)
 {
 	for (int32_t i = 0; i < 4000000 / num_thread; ++i)
 	{
-		switch (uid_op(dre))
+		switch (uid(dre) % 3)
 		{
 			case 0:
 			{
@@ -112,7 +111,7 @@ void ThreadCheck(std::vector<History>* history, int32_t num_thread)
 	{
 		int32_t value{ uid(dre) };
 
-		switch (uid_op(dre))
+		switch (uid(dre) % 3)
 		{
 			case 0:
 			{
