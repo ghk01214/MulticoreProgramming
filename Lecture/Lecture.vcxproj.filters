@@ -63,10 +63,13 @@
     <ClInclude Include="Exchanger.hpp">
       <Filter>Stack</Filter>
     </ClInclude>
-    <ClInclude Include="SLNode.h">
+    <ClInclude Include="SLNode.hpp">
       <Filter>SkipList</Filter>
     </ClInclude>
     <ClInclude Include="SkipList.hpp">
+      <Filter>SkipList</Filter>
+    </ClInclude>
+    <ClInclude Include="SLMarkablePtr.hpp">
       <Filter>SkipList</Filter>
     </ClInclude>
   </ItemGroup>
@@ -94,9 +97,6 @@
     </ClCompile>
     <ClCompile Include="SKIPLIST.cpp">
       <Filter>SkipList</Filter>
-    </ClCompile>
-    <ClCompile Include="aaa.cpp">
-      <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

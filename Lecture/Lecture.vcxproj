@@ -161,17 +161,13 @@
     <ClInclude Include="QNode.hpp" />
     <ClInclude Include="Queue.hpp" />
     <ClInclude Include="SkipList.hpp" />
-    <ClInclude Include="SLNode.h" />
+    <ClInclude Include="SLMarkablePtr.hpp" />
+    <ClInclude Include="SLNode.hpp" />
     <ClInclude Include="SNode.hpp" />
     <ClInclude Include="Stack.hpp" />
     <ClInclude Include="StampPtr.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="aaa.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="BackOff.cpp" />
     <ClCompile Include="ebr_SET.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>

@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "SLNode.h"
+#include "SLNode.hpp"
 
 template<typename T>
 class SkipList
@@ -37,7 +37,7 @@ SkipList<T>::SkipList() :
 
 	for (auto& node : _head.next)
 	{
-		node = &_tail;
+		node = SLMarkablePtr<T>{ false, &_tail };
 	}
 }
 
@@ -56,21 +56,15 @@ inline bool SkipList<T>::insert(T value)
 	{
 		int32_t found{ Find(value, prev, current) };
 
-		// value 값이 존재한다
-		if (found != -1)
+		while (found == -1)
 		{
-			if (current[found]->removed == true)
-				continue;
-
-			while (current[found]->fully_linked == false) {}
-
-			return false;
+			found = Find(value, prev, current);
 		}
 
-		// value가 존재하지 않는다
-		// lock을 하고 valid 검사를 한다
-		// 전부 lock을 하고 valid 검사를 하면 필요없는 lock을 추가로 할 수 있으니,
-		// 하나씩 lock을 하면서 검사한다
+		if (found == 1)
+			return false;
+
+		// value 값이 존재하지 않는다.
 
 		int32_t new_level{ 0 };
 		extern std::default_random_engine dre;
@@ -83,55 +77,23 @@ inline bool SkipList<T>::insert(T value)
 			++new_level;
 		}
 
-		bool valid{ true };
-		int32_t locked_top_level{ 0 };
+		SLNode<T>* node{ new SLNode<T>{value, new_level} };
 
 		for (int32_t i = 0; i <= new_level; ++i)
 		{
-			prev[i]->lock();
-
-			locked_top_level = i;
-			valid =
-			{
-				prev[i]->removed == false
-				and current[i]->removed == false
-				and prev[i]->next[i] == current[i]
-			};
-
-			if (valid == false)
-				break;
+			node->next[i] = SLMarkablePtr<T>{ false, current[i] };
 		}
 
-		if (valid == false)
-		{
-			for (int32_t i = 0; i <= locked_top_level; ++i)
-			{
-				prev[i]->unlock();
-			}
-
+		if (prev[0]->next[0].cas(current[0], false, node, false) == false)
 			continue;
-		}
 
-		SLNode<T>* node{ new SLNode<T>{ value, new_level } };
-
-		for (int32_t i = 0; i <= new_level; ++i)
+		for (int32_t i = 1; i <= new_level; ++i)
 		{
-			node->next[i] = current[i];
+			while (prev[i]->next[i].cas(current[i], false, node, false) == false)
+			{
+				Find(value, prev, current);
+			}
 		}
-
-		for (int32_t i = 0; i <= new_level; ++i)
-		{
-			prev[i]->next[i] = node;
-		}
-
-		node->fully_linked = true;
-
-		for (int32_t i = 0; i <= locked_top_level; ++i)
-		{
-			prev[i]->unlock();
-		}
-
-		return true;
 	}
 }
 
@@ -142,66 +104,37 @@ inline bool SkipList<T>::remove(T value)
 	SLNode<T>* current[MAX_LEVEL + 1];
 
 	SLNode<T>* node{ nullptr };
-	int32_t found{ Find(value, prev, current) };
-
-	if (found != -1)
-		node = current[found];
-
-	if (found == -1
-		or node->removed == true
-		or node->fully_linked == false
-		or node->top_level != found)
-		return false;
-
-	node->lock();
-
-	if (node->removed == true)
-	{
-		node->unlock();
-		return false;
-	}
-	
-	node->removed = true;
 
 	while (true)
 	{
-		bool valid{ true };
-		int32_t locked_top_level{ -1 };
+		int32_t found{ Find(value, prev, current) };
 
-		for (int32_t i = 0; i <= node->top_level; ++i)
+		while (found == -1)
 		{
-			prev[i]->lock();
-
-			locked_top_level = i;
-			valid = prev[i]->removed == false and prev[i]->next[i] == node;
-
-			if (valid == false)
-				break;
+			found = Find(value, prev, current);
 		}
 
-		if (valid == false)
+		if (found == 0)
+			return false;
+
+		bool cas_failed{ false };
+
+		for (int32_t i = current[0]->top_level; i > 0; --i)
 		{
-			for (int32_t i = 0; i <= locked_top_level; ++i)
+			if (prev[i]->next[i].cas(current[i], false, current[i], true) == false)
 			{
-				prev[i]->unlock();
+				cas_failed = true;
+				break;
 			}
+		}
 
-			Find(value, prev, current);
-
+		if (cas_failed == true)
 			continue;
-		}
 
-		for (int32_t i = 0; i <= node->top_level; ++i)
-		{
-			prev[i]->next[i] = node->next[i];
-		}
+		if (prev[0]->next[0].cas(current[0], false, current[0], true) == false)
+			continue;
 
-		for (int32_t i = 0; i <= locked_top_level; ++i)
-		{
-			prev[i]->unlock();
-		}
-
-		node->unlock();
+		Find(value, prev, current);
 
 		return true;
 	}
@@ -213,34 +146,32 @@ inline bool SkipList<T>::contains(T value)
 	SLNode<T>* prev[MAX_LEVEL + 1];
 	SLNode<T>* current[MAX_LEVEL + 1];
 
-	int32_t found{ Find(value, prev, current) };
-
-	return found != -1 and current[found]->fully_linked == true and current[found]->removed == false;
+	return Find(value, prev, current);
 }
 
 template<typename T>
 inline void SkipList<T>::clear()
 {
-	SLNode<T>* node{ _head.next[0] };
+	SLNode<T>* node{ _head.next[0].get_ptr() };
 
 	while (node != &_tail)
 	{
 		SLNode<T>* temp{ node };
-		node = node->next[0];
+		node = node->next[0].get_ptr();
 
 		delete temp;
 	}
 
 	for (auto& n : _head.next)
 	{
-		n = &_tail;
+		n = SLMarkablePtr<T>{ false, &_tail };
 	}
 }
 
 template<typename T>
 inline void SkipList<T>::Print()
 {
-	SLNode<T>* node{ _head.next[0] };
+	SLNode<T>* node{ _head.next[0].get_ptr() };
 
 	for (int32_t i = 0; i < 20; ++i)
 	{
@@ -248,7 +179,7 @@ inline void SkipList<T>::Print()
 			break;
 
 		std::cout << std::format("{}, ", node->data);
-		node = node->next[0];
+		node = node->next[0].get_ptr();
 	}
 
 	std::cout << std::endl;
@@ -257,28 +188,38 @@ inline void SkipList<T>::Print()
 template<typename T>
 inline int32_t SkipList<T>::Find(T value, SLNode<T>** prev, SLNode<T>** current)
 {
-	int32_t level{ -1 };
-
 	prev[MAX_LEVEL] = &_head;
 
 	for (int32_t i = MAX_LEVEL; i >= 0; --i)
 	{
-		current[i] = prev[i]->next[i];
+		current[i] = prev[i]->next[i].get_ptr();
 
-		while (current[i]->data < value)
+		while (true)
 		{
+			bool removed;
+			SLNode<T>* node{ current[i]->next[i].get_ptr_n_mark(&removed) };
+
+			while (removed == true)
+			{
+				if (prev[i]->next[i].cas(current[i], false, node, false) == false)
+					return -1;
+
+				current[i] = node;
+				node = current[i]->next[i].get_ptr_n_mark(&removed);
+			}
+
+			if (current[i]->data >= value)
+			{
+				if (i == 0)
+					return current[0]->data == value;
+
+				prev[i - 1] = prev[i];
+
+				break;
+			}
+
 			prev[i] = current[i];
-			current[i] = current[i]->next[i];
+			current[i] = node;
 		}
-
-		if (current[i]->data == value and level == -1)
-			level = i;
-
-		if (i == 0)
-			break;
-
-		prev[i - 1] = prev[i];
 	}
-
-	return level;
 }
