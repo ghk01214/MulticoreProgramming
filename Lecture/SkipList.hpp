@@ -141,44 +141,34 @@ inline bool SkipList<T>::remove(T value)
 	SLNode<T>* prev[MAX_LEVEL + 1];
 	SLNode<T>* current[MAX_LEVEL + 1];
 
-	bool removed{ false };
-	int32_t new_level{ -1 };
 	SLNode<T>* node{ nullptr };
+	int32_t found{ Find(value, prev, current) };
+
+	if (found != -1)
+		node = current[found];
+
+	if (found == -1
+		or node->removed == true
+		or node->fully_linked == false
+		or node->top_level != found)
+		return false;
+
+	node->lock();
+
+	if (node->removed == true)
+	{
+		node->unlock();
+		return false;
+	}
+	
+	node->removed = true;
 
 	while (true)
 	{
-		int32_t found{ Find(value, prev, current) };
-
-		if (found != -1)
-			node = current[found];
-
-		if (removed == false
-			and (found == -1
-				or node->fully_linked == false
-				or node->top_level != found
-				or node->removed == true))
-			return false;
-
-		if (removed == false)
-		{
-			new_level = node->top_level;
-
-			node->lock();
-
-			if (node->removed == true)
-			{
-				node->unlock();
-				return false;
-			}
-
-			node->removed = true;
-			removed = true;
-		}
-
 		bool valid{ true };
 		int32_t locked_top_level{ -1 };
 
-		for (int32_t i = 0; i <= new_level; ++i)
+		for (int32_t i = 0; i <= node->top_level; ++i)
 		{
 			prev[i]->lock();
 
@@ -196,10 +186,12 @@ inline bool SkipList<T>::remove(T value)
 				prev[i]->unlock();
 			}
 
+			Find(value, prev, current);
+
 			continue;
 		}
 
-		for (int32_t i = new_level; i >= 0; --i)
+		for (int32_t i = 0; i <= node->top_level; ++i)
 		{
 			prev[i]->next[i] = node->next[i];
 		}
@@ -209,8 +201,7 @@ inline bool SkipList<T>::remove(T value)
 			prev[i]->unlock();
 		}
 
-		if (found != -1)
-			node->unlock();
+		node->unlock();
 
 		return true;
 	}
