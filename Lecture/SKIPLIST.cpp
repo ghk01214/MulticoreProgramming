@@ -1118,6 +1118,244 @@ public:
 	}
 };
 
+class LF_NODE_SK;
+
+class LF_PTR_SK {
+	uint64_t next;
+public:
+	LF_PTR_SK() : next(0) {}
+	LF_PTR_SK(bool marking, LF_NODE_SK* ptr)
+	{
+		next = reinterpret_cast<uint64_t>(ptr);
+
+		if (true == marking)
+			next = next | 1;
+	}
+	LF_NODE_SK* get_ptr()
+	{
+		return reinterpret_cast<LF_NODE_SK*>(next & 0xFFFFFFFFFFFFFFFE);
+	}
+	bool get_removed()
+	{
+		return (next & 1) == 1;
+	}
+	LF_NODE_SK* get_ptr_mark(bool* removed)
+	{
+		unsigned long long cur_next = next;
+		*removed = (cur_next & 1) == 1;
+
+		return reinterpret_cast<LF_NODE_SK*>(cur_next & 0xFFFFFFFFFFFFFFFE);
+	}
+	bool CAS(LF_NODE_SK* o_ptr, LF_NODE_SK* n_ptr, bool o_mark, bool n_mark)
+	{
+		uint64_t o_next = reinterpret_cast<uint64_t>(o_ptr);
+		uint64_t n_next = reinterpret_cast<uint64_t>(n_ptr);
+
+		if (true == o_mark)
+			++o_next;
+
+		if (true == n_mark)
+			++n_next;
+
+		return atomic_compare_exchange_strong(
+			reinterpret_cast<atomic_uint64_t*>(&next), &o_next, n_next);
+	}
+	bool is_removed()
+	{
+		return (next & 1) == 1;
+	}
+};
+
+class LF_NODE_SK {
+public:
+	int v;
+	LF_PTR_SK next[MAX_LEVEL + 1];
+	int	top_level;
+	LF_NODE_SK() : v(-1), top_level(0) { }
+	LF_NODE_SK(int x, int top) : v(x), top_level(top) {}
+};
+
+class LF_SKLIST {
+	LF_NODE_SK head, tail;
+public:
+	LF_SKLIST()
+	{
+		head.v = 0x80000000;
+		tail.v = 0x7FFFFFFF;
+
+		tail.top_level = head.top_level = MAX_LEVEL;
+
+		for (auto& n : head.next)
+		{
+			n = LF_PTR_SK{ false, &tail };
+		}
+	}
+
+	bool Find(int x, LF_NODE_SK* pred[], LF_NODE_SK* curr[])
+	{
+	restart:
+
+		pred[MAX_LEVEL] = &head;
+
+		for (int i = MAX_LEVEL; i >= 0; --i)
+		{
+			curr[i] = pred[i]->next[i].get_ptr();
+
+			while (true)
+			{
+				bool removed;
+				LF_NODE_SK* succ = curr[i]->next[i].get_ptr_mark(&removed);
+
+				while (true == removed)
+				{
+					if (false == pred[i]->next[i].CAS(curr[i], succ, false, false))
+						goto restart;
+
+					curr[i] = succ;
+					succ = curr[i]->next[i].get_ptr_mark(&removed);
+				}
+
+				if (curr[i]->v < x)
+				{
+					pred[i] = curr[i];
+					curr[i] = succ;
+				}
+				else
+				{
+					if (i == 0)
+						return curr[0]->v == x;
+
+					pred[i - 1] = pred[i];
+					break;
+				}
+			}
+		}
+	}
+
+	bool ADD(int x)
+	{
+		// 검색
+		LF_NODE_SK* pred[MAX_LEVEL + 1];
+		LF_NODE_SK* curr[MAX_LEVEL + 1];
+
+		while (true) {
+			bool exist = Find(x, pred, curr);
+
+			if (true == exist)
+				return false;
+
+			// x값이 존재하지 않는다.
+
+			int new_level = 0;
+
+			for (int i = 0; i < MAX_LEVEL; ++i)
+			{
+				if ((rand() % 2) == 0)
+					break;
+
+				new_level++;
+			}
+
+			LF_NODE_SK* new_node = new LF_NODE_SK{ x, new_level };
+
+			for (int i = 0; i <= new_level; ++i)
+			{
+				new_node->next[i] = LF_PTR_SK{ false, curr[i] };
+			}
+
+			if (false == pred[0]->next[0].CAS(curr[0], new_node, false, false))
+				continue;
+
+			for (int i = 1; i <= new_level; ++i)
+			{
+				while (false == pred[i]->next[i].CAS(curr[i], new_node, false, false))
+				{
+					Find(x, pred, curr);
+				}
+			}
+
+			return true;
+		}
+	}
+
+	bool REMOVE(int x)
+	{
+		LF_NODE_SK* pred[MAX_LEVEL + 1];
+		LF_NODE_SK* curr[MAX_LEVEL + 1];
+
+		while (true)
+		{
+			bool exist = Find(x, pred, curr);
+
+			if (false == exist)
+				return false;
+
+			// x값이 존재하지 않는다.
+			int top_level = curr[0]->top_level;
+			bool is_failed = false;
+
+			for (int i = top_level; i >= 1; --i)
+			{
+				if (false == pred[i]->next[i].CAS(curr[i], curr[i], false, true))
+				{
+					is_failed = true;
+					break;
+				}
+			}
+
+			if (is_failed)
+				continue;
+
+			if (false == pred[0]->next[0].CAS(curr[0], curr[0], false, true))
+				continue;
+
+			Find(x, pred, curr);
+			return true;
+		}
+	}
+
+	bool CONTAINS(int x)
+	{
+		LF_NODE_SK* pred[MAX_LEVEL + 1];
+		LF_NODE_SK* curr[MAX_LEVEL + 1];
+
+		return Find(x, pred, curr);
+	}
+
+	void print20()
+	{
+		LF_NODE_SK* p = head.next[0].get_ptr();
+
+		for (int i = 0; i < 20; ++i)
+		{
+			if (p == &tail)
+				break;
+
+			cout << p->v << ", ";
+			p = p->next[0].get_ptr();
+		}
+
+		cout << endl;
+	}
+
+	void clear()
+	{
+		LF_NODE_SK* p = head.next[0].get_ptr();
+
+		while (p != &tail)
+		{
+			LF_NODE_SK* t = p;
+			p = p->next[0].get_ptr();
+
+			delete t;
+		}
+
+		for (auto& n : head.next)
+		{
+			n = LF_PTR_SK{ false, &tail };
+		}
+	}
+};
 
 //SET my_set;   // 성긴 동기화
 // F_SET my_set;   // 세밀한 동기화
@@ -1126,7 +1364,8 @@ public:
 //L_SET_SP my_set; // 게으른 동기화 shared_ptr 구현
 //LF_SET my_set;
 //C_SKLIST my_set;
-L_SKLIST my_set;
+//L_SKLIST my_set;
+LF_SKLIST my_set;
 
 class HISTORY {
 public:

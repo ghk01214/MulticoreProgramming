@@ -21,10 +21,6 @@ template<typename T>
 inline SLNode<T>::SLNode() :
 	top_level{ 0 }
 {
-	for (auto& node : next)
-	{
-		node = nullptr;
-	}
 }
 
 template<typename T>
@@ -32,8 +28,4 @@ inline SLNode<T>::SLNode(T data, int32_t top_level) :
 	data{ data },
 	top_level{ top_level }
 {
-	for (auto& node : next)
-	{
-		node = nullptr;
-	}
 }
