@@ -1291,26 +1291,38 @@ public:
 				return false;
 
 			// x값이 존재하지 않는다.
-			int top_level = curr[0]->top_level;
+			LF_NODE_SK* node = curr[0];
+			int top_level = node->top_level;
 			bool is_failed = false;
 
 			for (int i = top_level; i >= 1; --i)
 			{
-				if (false == pred[i]->next[i].CAS(curr[i], curr[i], false, true))
+				bool removed = false;
+				LF_NODE_SK* success = node->next[i].get_ptr_mark(&removed);
+
+				while (removed == false)
 				{
-					is_failed = true;
-					break;
+					pred[i]->next[i].CAS(curr[i], curr[i], false, true);
+					success = node->next[i].get_ptr_mark(&removed);
 				}
 			}
 
-			if (is_failed)
-				continue;
+			bool removed = false;
+			LF_NODE_SK* success = node->next[0].get_ptr_mark(&removed);
 
-			if (false == pred[0]->next[0].CAS(curr[0], curr[0], false, true))
-				continue;
+			while (true)
+			{
+				bool mark = node->next[0].CAS(success, success, false, true);
 
-			Find(x, pred, curr);
-			return true;
+				if (mark == false)
+				{
+					if (removed == true)
+						return false;
+				}
+
+				Find(x, pred, curr);
+				return true;
+			}
 		}
 	}
 
