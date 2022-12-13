@@ -1285,15 +1285,12 @@ public:
 
 		while (true)
 		{
-			bool exist = Find(x, pred, curr);
-
-			if (false == exist)
+			if (Find(x, pred, curr) == false)
 				return false;
 
 			// x값이 존재하지 않는다.
 			LF_NODE_SK* node = curr[0];
 			int top_level = node->top_level;
-			bool is_failed = false;
 
 			for (int i = top_level; i >= 1; --i)
 			{
@@ -1302,22 +1299,23 @@ public:
 
 				while (removed == false)
 				{
-					pred[i]->next[i].CAS(curr[i], curr[i], false, true);
+					node->next[i].CAS(success, success, false, true);
 					success = node->next[i].get_ptr_mark(&removed);
 				}
 			}
 
 			bool removed = false;
-			LF_NODE_SK* success = node->next[0].get_ptr_mark(&removed);
 
 			while (true)
 			{
-				bool mark = node->next[0].CAS(success, success, false, true);
+				LF_NODE_SK* success = node->next[0].get_ptr_mark(&removed);
 
-				if (mark == false)
+				if (node->next[0].CAS(success, success, false, true) == false)
 				{
 					if (removed == true)
 						return false;
+
+					continue;
 				}
 
 				Find(x, pred, curr);
